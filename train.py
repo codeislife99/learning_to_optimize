@@ -39,16 +39,17 @@ class Trainer(object):
             Variable(torch.zeros(self.batch_size, self.hidden_size)), # hidden state
             Variable(torch.zeros(self.batch_size, self.hidden_size)), # cell state
         )
+        self.init_memory = (
+            Variable(torch.zeros(self.batch_size, self.hidden_size)), # hidden state
+            Variable(torch.zeros(self.batch_size, self.hidden_size)), # cell state
+        )
         self.state_seq = Variable(torch.FloatTensor(self.seq_length, self.batch_size, self.state_space_size))
         self.action_seq = Variable(torch.FloatTensor(self.seq_length, self.batch_size))
         self.reward_seq = Variable(torch.FloatTensor(self.seq_length, self.batch_size))
 
     def train_agent(self, state_seq, action_seq, reward_seq):
-        print("xxx")
         self.optimizer.zero_grad()
-        self.memory[0].data.zero_()
-        self.memory[1].data.zero_()
-        policy_loss = self.agent.full_seq_loss(state_seq, action_seq, reward_seq, self.memory)
+        policy_loss = self.agent.full_seq_loss(state_seq, action_seq, reward_seq, self.init_memory)
         reinforce_loss = policy_loss.mean()
         reinforce_loss.backward()
         self.optimizer.step()
@@ -62,6 +63,7 @@ class Trainer(object):
 
         env = QuadraticEnvironment(batch_size=self.batch_size, dimensions=self.dimensions)
         for episode in range(self.num_episodes):
+            print("episide =", episode)
             env.reset_state()
             state_history, action_history, reward_history = [], [], []
 
