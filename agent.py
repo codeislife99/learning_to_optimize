@@ -37,6 +37,16 @@ class Agent(object):
         """
         returns policy loss
         """
+        seq_length = len(state_seq)
+        loss = 0.0
+        memory = init_memory
+        criterion = nn.CrossEntropyLoss()
+        for i in range(seq_length):
+            logits, memory = self.step(state_seq[i], memory)
+            loss += reward_seq[i] * criterion(logits, action_seq[i])
+        return loss
+
+
 
      def fp(self, current_state, memory):
             """
