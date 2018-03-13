@@ -33,4 +33,19 @@ class Agent(object):
         y = self.projection(lstm_state[0])
         return y, lstm_state
 
+    def full_seq_loss(state_seq, action_seq, reward_seq, init_memory):
+        """
+        returns policy loss
+        """
+
+     def fp(self, current_state, memory):
+            """
+            forward pass
+            current_state: pytorch variable
+            memory: pytorch variable
+            """
+            output, updated_memory = self.step(current_state, memory)
+            next_action = torch.multinomial(output, 1).squeeze() # action selection according to probabilities
+            return next_action, updated_memory
+
     

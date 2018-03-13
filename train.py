@@ -31,23 +31,19 @@ class Trainer(object):
         self.agent = Agent(state_space=self.state_space_size, action_space_size=self.action_space_size, hidden_size=self.hidden_size)
 
         self.optimizer = optim.Adam([{'params': self.agent.policy_step}, {'params': self.agent.projection}], lr=0.0001)
+        self.seq_length = 100
 
         def initialize(self):
             self.state = Variable(torch.FloatTensor(self.batch_size, self.state_space_size))
             self.memory = Variable(torch.zeros(2, self.batch_size, self.hidden_size)) # hidden state, and cell state
-            self.state_seq = Variable(torch.FloatTensor(self.batch_size, self.state_space_size))
-            self.action_seq = Variable(torch.FloatTensor(self.batch_size))
+            self.state_seq = Variable(torch.FloatTensor(self.seq_length, self.batch_size, self.state_space_size))
+            self.action_seq = Variable(torch.FloatTensor(self.seq_length, self.batch_size))
 
             
-        def fp(self, current_state, memory):
-            """
-            current_state: pytorch variable
-            memory: pytorch variable
-            """
-            output, updated_memory = self.agent.step(current_state, memory)
-            next_action = torch.multinomial(output, 1).squeeze() # action selection according to probabilities
-            self.memory.data.copy_(updated_memory)
-            return next_action.data.numpy(), updated_memory.data.numpy()
+       
+
+        def train_agent(self):
+
 
 
         def fit(self):
@@ -60,16 +56,25 @@ class Trainer(object):
                 total_reward = 0.0
                 current_state = env.get_state()
                 self.memory.data.zero_()
-                for t in trange(100):
+                # generate state action sequence using current policy by evaluating the model
+                for t in trange(self.seq_length):
                     self.state.data.copy_(current_state)
-                    next_action, current_memory = self.fp(current_state=self.state, memory=self.memory)
+                    next_action, self.memory = self.agend.fp(current_state=self.state, memory=self.memory)
+                    next_action = next_action.data.numpy()
                     state_history.append(current_state)
                     action_history.append(next_action)
                     current_state, current_reward = env(self.step_size_map[next_action])
                     total_reward += current_reward
                     reward_history.append(current_reward)
+                state_history = np.stack(state_history)
+                action_history = np.stack(action_history)
+                reward_history = np.stack(reward_history)
 
-                    
+                self.train_agent(state_history, action_history, reward_history):
+
+
+
+
 
 
 
