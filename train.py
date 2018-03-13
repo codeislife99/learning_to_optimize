@@ -89,7 +89,10 @@ class Trainer(object):
 
 
 
-
+if __name__ == '__main__':
+    t = Trainer()
+    t.initialize()
+    t.fit()
 
 
 
