@@ -91,7 +91,7 @@ class Trainer(object):
 
             self.train_agent(state_history, action_history, reward_history)
 
-            print('\t at episode {0:10d} total reward: {2:10.4f}'.format(episode, np.sum(total_reward)))
+            print('\t at episode {0:10d} total reward: {1:10.4f}'.format(episode, np.sum(total_reward)))
             
 
                     
