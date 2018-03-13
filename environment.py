@@ -30,7 +30,6 @@ class QuadraticEnvironment(object):
         v[-1] = np.random.choice([1e-1,1e0,1e1,1e2])
         B = np.dot(Q*v, Q.T)
         return B
-
     def get_state(self):
         return np.hstack((self.current_iterate, self.gradient, np.clip(np.expand_dims(self.func_val,1), -1e4, 1e4)))
 
