@@ -17,7 +17,7 @@ class Agent(object):
         self.hidden_size = hidden_size
         self.state_space_size = state_space_size
 
-        self.policy_step = nn.LSTM(self.state_space_size, self.hidden_size)
+        self.policy_step = nn.LSTMCell(self.state_space_size, self.hidden_size)
         self.projection = nn.Linear(self.hidden_size, self.action_space_size)
 
     def step(self, x, state_tm1):
