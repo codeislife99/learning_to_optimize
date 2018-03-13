@@ -6,6 +6,7 @@ import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.autograd import Variable
 import sys
 import time
 import pdb
@@ -29,7 +30,6 @@ class Agent(object):
         Returns:
             action probabilites, memory state 
         """
-        import ipdb; ipdb.set_trace()
         lstm_state = self.policy_step(x, state_tm1)
         y = self.projection(lstm_state[0])
         return y, lstm_state
@@ -43,11 +43,12 @@ class Agent(object):
         memory = init_memory
         criterion = nn.CrossEntropyLoss()
         for i in range(seq_length):
-            logits, memory = self.step(state_seq[i], memory)
-            loss += reward_seq[i] * criterion(logits, action_seq[i])
+            current_state = Variable(torch.from_numpy(state_seq[i].astype("float32")))
+            current_reward = Variable(torch.from_numpy(reward_seq[i].astype("float32")))
+            current_action = Variable(torch.from_numpy(action_seq[i].astype("int64")))
+            logits, memory = self.step(current_state, memory)
+            loss += current_reward * criterion(logits, current_action)
         return loss
-
-
 
     def fp(self, current_state, memory):
         """
@@ -56,7 +57,6 @@ class Agent(object):
             memory: pytorch variable
         """
         output, updated_memory = self.step(current_state, memory)
+        output = F.softmax(output, dim=-1)
         next_action = torch.multinomial(output, 1).squeeze() # action selection according to probabilities
         return next_action, updated_memory
-
-    

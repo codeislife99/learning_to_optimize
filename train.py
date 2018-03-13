@@ -35,15 +35,19 @@ class Trainer(object):
 
     def initialize(self):
         self.state = Variable(torch.FloatTensor(self.batch_size, self.state_space_size))
-        self.memory = Variable(torch.zeros(2, self.batch_size, self.hidden_size)) # hidden state, and cell state
+        self.memory = (
+            Variable(torch.zeros(self.batch_size, self.hidden_size)), # hidden state
+            Variable(torch.zeros(self.batch_size, self.hidden_size)), # cell state
+        )
         self.state_seq = Variable(torch.FloatTensor(self.seq_length, self.batch_size, self.state_space_size))
         self.action_seq = Variable(torch.FloatTensor(self.seq_length, self.batch_size))
         self.reward_seq = Variable(torch.FloatTensor(self.seq_length, self.batch_size))
 
-            
     def train_agent(self, state_seq, action_seq, reward_seq):
+        print("xxx")
         self.optimizer.zero_grad()
-        self.memory.data.zero_()
+        self.memory[0].data.zero_()
+        self.memory[1].data.zero_()
         policy_loss = self.agent.full_seq_loss(state_seq, action_seq, reward_seq, self.memory)
         reinforce_loss = policy_loss.mean()
         reinforce_loss.backward()
@@ -63,7 +67,8 @@ class Trainer(object):
 
             total_reward = 0.0
             current_state = env.get_state()
-            self.memory.data.zero_()
+            self.memory[0].data.zero_()
+            self.memory[1].data.zero_()
             # generate state action sequence using current policy by evaluating the model
             for t in trange(self.seq_length):
                 self.state.data.copy_(torch.from_numpy(current_state))
@@ -78,9 +83,9 @@ class Trainer(object):
             action_history = np.stack(action_history)
             reward_history = np.stack(reward_history)
 
-            self.state_seq.data.copy_(state_history)
-            self.action_seq.data.copy_(action_history)
-            self.reward_seq.data.copy_(reward_history)
+            self.state_seq.data.copy_(torch.from_numpy(state_history))
+            self.action_seq.data.copy_(torch.from_numpy(action_history))
+            self.reward_seq.data.copy_(torch.from_numpy(reward_history))
 
             self.train_agent(state_history, action_history, reward_history)
 
