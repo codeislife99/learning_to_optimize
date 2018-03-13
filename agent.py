@@ -33,7 +33,7 @@ class Agent(object):
         y = self.projection(lstm_state[0])
         return y, lstm_state
 
-    def full_seq_loss(state_seq, action_seq, reward_seq, init_memory):
+    def full_seq_loss(self, state_seq, action_seq, reward_seq, init_memory):
         """
         returns policy loss
         """
