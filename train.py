@@ -15,6 +15,15 @@ import pdb
 import matplotlib.pyplot as plt 
 from pympler.tracker import SummaryTracker
 import gc
+from pylab import *
+plt.ion()
+def curve_plot(plot_arr,episode_arr,xlabel,ylabel,number):
+    figure(number)
+    plt.plot(episode_arr,plot_arr)
+    plt.ylabel(ylabel)
+    plt.xlabel(xlabel)
+    plt.savefig(xlabel+'_'+ylabel+'_'+'.png')
+    plt.pause(0.05)
 
 class Trainer(object):
     def __init__(self):
@@ -65,10 +74,14 @@ class Trainer(object):
         env = QuadraticEnvironment(batch_size=self.batch_size, dimensions=self.dimensions)
         grand_total_reward = 0.0 
         grand_total_loss = 0.0 
+        episode_arr = []
+        reward_arr = []
+        avgreward_arr = []
+        loss_arr = []
+        avgloss_arr = []
         for episode in range(self.num_episodes):
             # tracker = SummaryTracker()
 
-            # print("episide =", episode)
             env.reset_state()
             state_history, action_history, reward_history = [], [], []
 
@@ -79,7 +92,6 @@ class Trainer(object):
             # generate state action sequence using current policy by evaluating the model
 
             for t in range(self.seq_length):
-                # print(t)
                 self.state.data.copy_(torch.from_numpy(current_state))
                 next_action, self.memory = self.agent.fp(current_state=self.state, memory=self.memory)
                 next_action = next_action.data.numpy()
@@ -96,13 +108,24 @@ class Trainer(object):
             self.action_seq.data.copy_(torch.from_numpy(action_history))
             self.reward_seq.data.copy_(torch.from_numpy(reward_history))
             grand_total_reward += total_reward
-            grand_total_loss += self.train_agent(state_history, action_history, reward_history)
+            current_loss = self.train_agent(state_history, action_history, reward_history)
+            grand_total_loss += current_loss
+
+            episode_arr.append(episode+1)
+            reward_arr.append(np.sum(total_reward))
+            avgreward_arr.append(np.sum(grand_total_reward)/(episode+1))
+            loss_arr.append(np.sum(current_loss))
+            avgloss_arr.append(np.sum(grand_total_loss)/(episode+1))
+            curve_plot(reward_arr,episode_arr,'Episode','Reward',0)
+            curve_plot(avgreward_arr,episode_arr,'Episode','Average Reward',1)
+            curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
+            curve_plot(avgloss_arr,episode_arr,'Episode','Average Loss',3)
             print('Training -- Episode [%d], Average Reward: %.4f, Average Loss: %.4f'
 			% (episode+1, np.sum(grand_total_reward)/(episode+1), np.sum(grand_total_loss)/(episode+1)))
-            # print('\t At Episode {0:10d} Average Reward: {1:10.4f} Average Loss:{11:20.4f}'.format(episode, np.sum(grand_total_reward)/(episode+1), np.sum(grand_total_loss)/(episode+1)))
             
             # tracker.print_diff()
-            gc.collect()                   
+            gc.collect()    
+
 
 
 
