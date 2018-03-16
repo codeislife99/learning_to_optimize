@@ -13,6 +13,8 @@ import time
 import argparse
 import pdb
 import matplotlib.pyplot as plt 
+from pympler.tracker import SummaryTracker
+import gc
 
 class Trainer(object):
     def __init__(self):
@@ -58,14 +60,15 @@ class Trainer(object):
 
 
 
-
     def fit(self):
 
         env = QuadraticEnvironment(batch_size=self.batch_size, dimensions=self.dimensions)
         grand_total_reward = 0.0 
         grand_total_loss = 0.0 
         for episode in range(self.num_episodes):
-            print("episide =", episode)
+            # tracker = SummaryTracker()
+
+            # print("episide =", episode)
             env.reset_state()
             state_history, action_history, reward_history = [], [], []
 
@@ -75,7 +78,8 @@ class Trainer(object):
             self.memory[1].data.zero_()
             # generate state action sequence using current policy by evaluating the model
 
-            for t in trange(self.seq_length):
+            for t in range(self.seq_length):
+                # print(t)
                 self.state.data.copy_(torch.from_numpy(current_state))
                 next_action, self.memory = self.agent.fp(current_state=self.state, memory=self.memory)
                 next_action = next_action.data.numpy()
@@ -93,11 +97,12 @@ class Trainer(object):
             self.reward_seq.data.copy_(torch.from_numpy(reward_history))
             grand_total_reward += total_reward
             grand_total_loss += self.train_agent(state_history, action_history, reward_history)
-            print('\t At Episode {0:10d} Average Reward: {1:10.4f} Average Loss:{1:10.4f}'.format(episode, np.sum(grand_total_reward)/(episode+1), 
-            																			np.sum(grand_total_loss)/(episode+1)))
+            print('Training -- Episode [%d], Average Reward: %.4f, Average Loss: %.4f'
+			% (episode+1, np.sum(grand_total_reward)/(episode+1), np.sum(grand_total_loss)/(episode+1)))
+            # print('\t At Episode {0:10d} Average Reward: {1:10.4f} Average Loss:{11:20.4f}'.format(episode, np.sum(grand_total_reward)/(episode+1), np.sum(grand_total_loss)/(episode+1)))
             
-
-                    
+            # tracker.print_diff()
+            gc.collect()                   
 
 
 
