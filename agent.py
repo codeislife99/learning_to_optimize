@@ -58,5 +58,9 @@ class Agent(object):
         """
         output, updated_memory = self.step(current_state, memory)
         output = F.softmax(output, dim=-1)
-        next_action = torch.distributions.Categorical(output).sample()
+        
+        try:
+            next_action = torch.distributions.Categorical(output).sample()
+        except:
+            import pdb; pdb.set_trace()
         return next_action, updated_memory

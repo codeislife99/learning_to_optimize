@@ -12,7 +12,7 @@ import sys
 import time
 import argparse
 import pdb
-
+import matplotlib.pyplot as plt 
 
 class Trainer(object):
     def __init__(self):
@@ -30,7 +30,7 @@ class Trainer(object):
 
         self.agent = Agent(state_space_size=self.state_space_size, action_space_size=self.action_space_size, hidden_size=self.hidden_size)
 
-        self.optimizer = optim.Adam([{'params': self.agent.policy_step.parameters()}, {'params': self.agent.projection.parameters()}], lr=0.0001)
+        self.optimizer = optim.SGD([{'params': self.agent.policy_step.parameters()}, {'params': self.agent.projection.parameters()}], lr=0.01)
         self.seq_length = 100
 
     def initialize(self):
@@ -62,6 +62,8 @@ class Trainer(object):
     def fit(self):
 
         env = QuadraticEnvironment(batch_size=self.batch_size, dimensions=self.dimensions)
+        grand_total_reward = 0.0 
+        grand_total_loss = 0.0 
         for episode in range(self.num_episodes):
             print("episide =", episode)
             env.reset_state()
@@ -72,6 +74,7 @@ class Trainer(object):
             self.memory[0].data.zero_()
             self.memory[1].data.zero_()
             # generate state action sequence using current policy by evaluating the model
+
             for t in trange(self.seq_length):
                 self.state.data.copy_(torch.from_numpy(current_state))
                 next_action, self.memory = self.agent.fp(current_state=self.state, memory=self.memory)
@@ -88,10 +91,10 @@ class Trainer(object):
             self.state_seq.data.copy_(torch.from_numpy(state_history))
             self.action_seq.data.copy_(torch.from_numpy(action_history))
             self.reward_seq.data.copy_(torch.from_numpy(reward_history))
-
-            self.train_agent(state_history, action_history, reward_history)
-
-            print('\t at episode {0:10d} total reward: {1:10.4f}'.format(episode, np.sum(total_reward)))
+            grand_total_reward += total_reward
+            grand_total_loss += self.train_agent(state_history, action_history, reward_history)
+            print('\t At Episode {0:10d} Average Reward: {1:10.4f} Average Loss:{1:10.4f}'.format(episode, np.sum(grand_total_reward)/(episode+1), 
+            																			np.sum(grand_total_loss)/(episode+1)))
             
 
                     
