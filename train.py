@@ -30,7 +30,7 @@ class Trainer(object):
         self.batch_size = 256
         self.dimensions = 100
         self.hidden_size = 10
-        self.num_episodes = 10000
+        self.num_episodes = 500
 
         # set of learning rates from which agent chooses from
         self.step_size_map = np.array([10**i for i in range(-6, 1)])
