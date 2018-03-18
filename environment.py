@@ -4,7 +4,7 @@ import numpy as np
 import sys
 import time
 import argparse
-
+from numpy.linalg import inv
 
 class QuadraticEnvironment(object):
 
@@ -12,9 +12,17 @@ class QuadraticEnvironment(object):
         self.batch_size = batch_size
         self.dimensions = dimensions
         self.H = np.asarray([self.generate_psd2(dimensions) for _ in range(batch_size)])
+
         self.g = np.asarray([np.random.rand(dimensions) for _ in range(batch_size)])
         self.current_iterate = np.ones((batch_size, dimensions))
         self.func_val = .5 * np.einsum('ij,ijk,ik->i', self.current_iterate, self.H, self.current_iterate) + np.einsum('ij,ij->i', self.current_iterate, self.g)
+        self.opti_x = np.empty((batch_size,dimensions,1),dtype=np.float32)
+        self.opti_func_val = np.empty((batch_size,),dtype=np.float32)
+        for i in range(batch_size):
+            self.opti_x[i] = np.dot(inv(self.H[i]) ,self.g[i].reshape(dimensions,1))
+            self.opti_func_val[i] = .5 * np.dot(np.dot(np.transpose(self.opti_x[i]),self.H[i]),self.opti_x[i]) - np.dot(np.transpose(self.g[i].reshape(dimensions,1)),self.opti_x[i]) 
+        # print(self.opti_x.shape)
+        # print(self.opti_func_val)
         self.gradient = np.einsum('ijk,ik->ij',self.H, self.current_iterate) + self.g
 
     def generate_psd(self, dimensions):
@@ -29,6 +37,8 @@ class QuadraticEnvironment(object):
         v = np.sort(v)
         v[-1] = np.random.choice([1e-1,1e0,1e1,1e2])
         B = np.dot(Q*v, Q.T)
+        # print(v)
+        # import pdb; pdb.set_trace()
         return B
     def get_state(self):
         return np.hstack((self.current_iterate, self.gradient, np.clip(np.expand_dims(self.func_val,1), -1e4, 1e4)))
@@ -52,8 +62,11 @@ class QuadraticEnvironment(object):
         func_val = .5 * np.einsum('ij,ijk,ik->i', self.current_iterate, self.H, self.current_iterate) + np.einsum('ij,ij->i', self.current_iterate, self.g)
         self.gradient = np.einsum('ijk,ik->ij',self.H, self.current_iterate) + self.g 
         reward = self.func_val - func_val
+        diff = np.sum(np.absolute(func_val - self.opti_func_val))
+        # print(diff)
         self.func_val = func_val
-        return np.hstack((self.current_iterate, self.gradient, np.clip(np.expand_dims(self.func_val,1), -1e4, 1e4))), np.clip(reward, -1e4, 1e4)
+        # import pdb; pdb.set_trace()        
+        return np.hstack((self.current_iterate, self.gradient, np.clip(np.expand_dims(self.func_val,1), -1e4, 1e4))), np.clip(reward, -1e4, 1e4),diff
 
 
 class LogisticEnvironment(object):
