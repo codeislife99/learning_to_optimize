@@ -94,6 +94,7 @@ class Trainer(object):
             self.memory[1].data.zero_()
             # generate state action sequence using current policy by evaluating the model
             diff_total = 0.0
+            diff_last = 0.0
             for t in range(self.seq_length):
                 self.state.data.copy_(torch.from_numpy(current_state))
                 next_action, self.memory = self.agent.fp(current_state=self.state, memory=self.memory)
@@ -102,6 +103,7 @@ class Trainer(object):
                 action_history.append(next_action)
                 current_state, current_reward,diff = env(self.step_size_map[next_action])
                 diff_total += diff
+                diff_last = diff
                 total_reward += current_reward
                 reward_history.append(current_reward)
             state_history = np.stack(state_history)
@@ -127,6 +129,7 @@ class Trainer(object):
             diff_arr.append(np.sum(diff_total))
             avgdiff_arr.append(np.sum(grand_total_diff)/(episode+1))
             print("Diff_TOTAL = ", diff_total)
+            print("Diff_LAST = ", diff_last)
             # curve_plot(reward_arr,episode_arr,'Episode','Reward',0)
             # curve_plot(avgreward_arr,episode_arr,'Episode','Average Reward',1)
             # curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
