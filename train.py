@@ -107,6 +107,8 @@ class Trainer(object):
             state_history = np.stack(state_history)
             action_history = np.stack(action_history)
             reward_history = np.stack(reward_history)
+            
+            diff_total = diff_total/(self.seq_length)
 
             self.state_seq.data.copy_(torch.from_numpy(state_history))
             self.action_seq.data.copy_(torch.from_numpy(action_history))

@@ -62,7 +62,7 @@ class QuadraticEnvironment(object):
         func_val = .5 * np.einsum('ij,ijk,ik->i', self.current_iterate, self.H, self.current_iterate) + np.einsum('ij,ij->i', self.current_iterate, self.g)
         self.gradient = np.einsum('ijk,ik->ij',self.H, self.current_iterate) + self.g 
         reward = self.func_val - func_val
-        diff = np.sum(np.absolute(func_val - self.opti_func_val))
+        diff = np.sum(np.absolute(func_val - self.opti_func_val))/self.batch_size
         # print(diff)
         self.func_val = func_val
         # import pdb; pdb.set_trace()        
