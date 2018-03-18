@@ -107,7 +107,7 @@ class Trainer(object):
             state_history = np.stack(state_history)
             action_history = np.stack(action_history)
             reward_history = np.stack(reward_history)
-            
+
             diff_total = diff_total/(self.seq_length)
 
             self.state_seq.data.copy_(torch.from_numpy(state_history))
@@ -124,13 +124,14 @@ class Trainer(object):
             avgreward_arr.append(np.sum(grand_total_reward)/(episode+1))
             loss_arr.append(np.sum(current_loss))
             avgloss_arr.append(np.sum(grand_total_loss)/(episode+1))
+            diff_arr.append(np.sum(diff_total))
             avgdiff_arr.append(np.sum(grand_total_diff)/(episode+1))
-
+            print("Diff_TOTAL = ", diff_total)
             curve_plot(reward_arr,episode_arr,'Episode','Reward',0)
             curve_plot(avgreward_arr,episode_arr,'Episode','Average Reward',1)
             curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
             curve_plot(avgloss_arr,episode_arr,'Episode','Average Loss',3)
-            curve_plot(avgdiff_arr,episode_arr,'Episode','Diff Value',4)
+            # curve_plot(diff_arr,episode_arr,'Episode','Diff Value',4)
             print('Training -- Episode [%d], Average Reward: %.4f, Average Loss: %.4f'
 			% (episode+1, np.sum(grand_total_reward)/(episode+1), np.sum(grand_total_loss)/(episode+1)))
             
