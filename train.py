@@ -128,15 +128,15 @@ class Trainer(object):
             avgloss_arr.append(np.sum(grand_total_loss)/(episode+1))
             diff_arr.append(np.sum(diff_total))
             avgdiff_arr.append(np.sum(grand_total_diff)/(episode+1))
-            print("Diff_TOTAL = ", diff_total)
-            print("Diff_LAST = ", diff_last)
+            # print("Diff_TOTAL = ", diff_total)
+            # print("Diff_LAST = ", diff_last)
             # curve_plot(reward_arr,episode_arr,'Episode','Reward',0)
             # curve_plot(avgreward_arr,episode_arr,'Episode','Average Reward',1)
             # curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
             # curve_plot(avgloss_arr,episode_arr,'Episode','Average Loss',3)
             # curve_plot(diff_arr,episode_arr,'Episode','Diff Value',4)
-            print('Training -- Episode [%d], Average Reward: %.4f, Average Loss: %.4f'
-            % (episode+1, np.sum(grand_total_reward)/(episode+1), np.sum(grand_total_loss)/(episode+1)))
+            print('Training -- Episode [%d], Average Reward: %.4f, Average Loss: %.4f,Diff Last: %.4f'
+            % (episode+1, np.sum(grand_total_reward)/(episode+1), np.sum(grand_total_loss)/(episode+1),diff_last))
             
             # tracker.print_diff()
             gc.collect()    
