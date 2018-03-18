@@ -31,6 +31,7 @@ class Trainer(object):
         self.dimensions = 100
         self.hidden_size = 10
         self.num_episodes = 500
+        self.seq_length = 100
 
         # set of learning rates from which agent chooses from
         self.step_size_map = np.array([10**i for i in range(-6, 1)])
@@ -42,7 +43,7 @@ class Trainer(object):
         self.agent = Agent(state_space_size=self.state_space_size, action_space_size=self.action_space_size, hidden_size=self.hidden_size)
 
         self.optimizer = optim.SGD([{'params': self.agent.policy_step.parameters()}, {'params': self.agent.projection.parameters()}], lr=0.01)
-        self.seq_length = 100
+        
 
     def initialize(self):
         self.state = Variable(torch.FloatTensor(self.batch_size, self.state_space_size))
