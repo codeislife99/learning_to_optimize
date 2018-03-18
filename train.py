@@ -139,11 +139,12 @@ class Trainer(object):
 
 
 
-    def fit_without_rl(self, optim_type='adam'):
-        param = Variable(torch.zeros(self.batch_size, self.dimensions), requires_grad=True)
-        env = QuadraticEnvironment(batch_size=self.batch_size, dimensions=self.dimensions)
+    def fit_without_rl(self, optim_type='sgd'):
+        batch_size = 1
+        param = Variable(torch.zeros(batch_size, self.dimensions), requires_grad=True)
+        env = QuadraticEnvironment(batch_size=batch_size, dimensions=self.dimensions)
         if optim_type == 'sgd':
-            optimizer = optim.SGD([{'params': param}], lr=0.00001, momentum=0.9, weight_decay=0.9)
+            optimizer = optim.SGD([{'params': param}], lr=1) #, momentum=0.9, weight_decay=0.9)
         elif optim_type == 'adam':
             optimizer = optim.Adam([{'params': param}], lr=0.001)
 
@@ -158,6 +159,7 @@ class Trainer(object):
             current_iterate, current_gradient = state[:, :self.dimensions], state[:, self.dimensions: 2 * self.dimensions]
             
             optimizer.zero_grad()
+            param.data.zero_()
             param.sum().backward()
             param.grad.data.copy_(torch.from_numpy(current_gradient))
             optimizer.step()
@@ -174,7 +176,7 @@ class Trainer(object):
             utils.curve_plot(reward_arr,episode_arr,'Episode','Reward',1)
             utils.curve_plot(diff_to_optim_val_arr,episode_arr,'Episode','diff',2)
             utils.curve_plot(diff_to_optim_x_arr,episode_arr,'Episode','diff_x',3)
-            utils.curve_plot(function_val_arr,episode_arr,'Episode','F value',4)
+            utils.curve_plot(function_val_arr,episode_arr,'Episode','value',4)
 
             print('Training -- Episode [%d], Reward: %.4f, diff: %.4f,Diff_x: %.4f, Val: %.4f' % (episode+1, reward, diff_to_optim_val, diff_to_optim_x, val))
             
