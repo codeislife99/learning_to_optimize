@@ -101,7 +101,7 @@ class Trainer(object):
                 state_history.append(current_state)
                 action_history.append(next_action)
                 current_state, current_reward,diff = env(self.step_size_map[next_action])
-                diff_total += (1.0*diff/self.batch_size)
+                diff_total += diff
                 total_reward += current_reward
                 reward_history.append(current_reward)
             state_history = np.stack(state_history)
@@ -127,13 +127,13 @@ class Trainer(object):
             diff_arr.append(np.sum(diff_total))
             avgdiff_arr.append(np.sum(grand_total_diff)/(episode+1))
             print("Diff_TOTAL = ", diff_total)
-            curve_plot(reward_arr,episode_arr,'Episode','Reward',0)
-            curve_plot(avgreward_arr,episode_arr,'Episode','Average Reward',1)
-            curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
-            curve_plot(avgloss_arr,episode_arr,'Episode','Average Loss',3)
+            # curve_plot(reward_arr,episode_arr,'Episode','Reward',0)
+            # curve_plot(avgreward_arr,episode_arr,'Episode','Average Reward',1)
+            # curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
+            # curve_plot(avgloss_arr,episode_arr,'Episode','Average Loss',3)
             # curve_plot(diff_arr,episode_arr,'Episode','Diff Value',4)
             print('Training -- Episode [%d], Average Reward: %.4f, Average Loss: %.4f'
-			% (episode+1, np.sum(grand_total_reward)/(episode+1), np.sum(grand_total_loss)/(episode+1)))
+            % (episode+1, np.sum(grand_total_reward)/(episode+1), np.sum(grand_total_loss)/(episode+1)))
             
             # tracker.print_diff()
             gc.collect()    

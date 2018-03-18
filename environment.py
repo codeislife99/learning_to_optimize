@@ -21,8 +21,6 @@ class QuadraticEnvironment(object):
         for i in range(batch_size):
             self.opti_x[i] = np.dot(inv(self.H[i]) ,self.g[i].reshape(dimensions,1))
             self.opti_func_val[i] = .5 * np.dot(np.dot(np.transpose(self.opti_x[i]),self.H[i]),self.opti_x[i]) - np.dot(np.transpose(self.g[i].reshape(dimensions,1)),self.opti_x[i]) 
-        # print(self.opti_x.shape)
-        # print(self.opti_func_val)
         self.gradient = np.einsum('ijk,ik->ij',self.H, self.current_iterate) + self.g
 
     def generate_psd(self, dimensions):
