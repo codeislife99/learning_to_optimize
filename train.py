@@ -16,14 +16,8 @@ import matplotlib.pyplot as plt
 from pympler.tracker import SummaryTracker
 import gc
 from pylab import *
-plt.ion()
-def curve_plot(plot_arr,episode_arr,xlabel,ylabel,number):
-    figure(number)
-    plt.plot(episode_arr,plot_arr)
-    plt.ylabel(ylabel)
-    plt.xlabel(xlabel)
-    plt.savefig(xlabel+'_'+ylabel+'_'+'.png')
-    plt.pause(0.05)
+import utils
+
 
 class Trainer(object):
     def __init__(self):
@@ -42,7 +36,7 @@ class Trainer(object):
 
         self.agent = Agent(state_space_size=self.state_space_size, action_space_size=self.action_space_size, hidden_size=self.hidden_size)
 
-        self.optimizer = optim.SGD([{'params': self.agent.policy_step.parameters()}, {'params': self.agent.projection.parameters()}], lr=0.01)
+        self.optimizer = optim.SGD([{'params': self.agent.policy_step.parameters()}, {'params': self.agent.projection.parameters()}], lr=0.1, momentum=0.9)
         
 
     def initialize(self):
@@ -66,8 +60,6 @@ class Trainer(object):
         reinforce_loss.backward()
         self.optimizer.step()
         return reinforce_loss.data.numpy()
-
-
 
 
     def fit(self):
@@ -100,6 +92,7 @@ class Trainer(object):
             for t in range(self.seq_length):
                 self.state.data.copy_(torch.from_numpy(current_state))
                 next_action, self.memory = self.agent.fp(current_state=self.state, memory=self.memory)
+                
                 next_action = next_action.data.numpy()
                 state_history.append(current_state)
                 action_history.append(next_action)
@@ -133,11 +126,11 @@ class Trainer(object):
             avgdiff_arr.append(np.sum(grand_total_diff)/(episode+1))
             # print("Diff_TOTAL = ", diff_total)
             # print("Diff_LAST = ", diff_last)
-            # curve_plot(reward_arr,episode_arr,'Episode','Reward',0)
-            # curve_plot(avgreward_arr,episode_arr,'Episode','Average Reward',1)
-            # curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
-            # curve_plot(avgloss_arr,episode_arr,'Episode','Average Loss',3)
-            # curve_plot(diff_arr,episode_arr,'Episode','Diff Value',4)
+            # utils.curve_plot(reward_arr,episode_arr,'Episode','Reward',0)
+            # utils.curve_plot(avgreward_arr,episode_arr,'Episode','Average Reward',1)
+            # utils.curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
+            # utils.urve_plot(avgloss_arr,episode_arr,'Episode','Average Loss',3)
+            # utils.curve_plot(diff_arr,episode_arr,'Episode','Diff Value',4)
             print('Training -- Episode [%d], Average Reward: %.4f, Average Loss: %.4f,Diff Last: %.4f,Diff X Last: %.4f'
             % (episode+1, np.sum(grand_total_reward)/(episode+1), np.sum(grand_total_loss)/(episode+1),diff_last,diff_x_last))
             
@@ -146,12 +139,62 @@ class Trainer(object):
 
 
 
+    def fit_without_rl(self, optim_type='adam'):
+        param = Variable(torch.zeros(self.batch_size, self.dimensions), requires_grad=True)
+        env = QuadraticEnvironment(batch_size=self.batch_size, dimensions=self.dimensions)
+        if optim_type == 'sgd':
+            optimizer = optim.SGD([{'params': param}], lr=0.00001, momentum=0.9, weight_decay=0.9)
+        elif optim_type == 'adam':
+            optimizer = optim.Adam([{'params': param}], lr=0.001)
+
+        episode_arr = []
+        reward_arr = []
+        diff_to_optim_val_arr = []
+        diff_to_optim_x_arr = []
+        function_val_arr = []
+
+        for episode in range(self.num_episodes):
+            state, reward, diff_to_optim_val, diff_to_optim_x = env(step_size=0.)
+            current_iterate, current_gradient = state[:, :self.dimensions], state[:, self.dimensions: 2 * self.dimensions]
+            
+            optimizer.zero_grad()
+            param.sum().backward()
+            param.grad.data.copy_(torch.from_numpy(current_gradient))
+            optimizer.step()
+            env.current_iterate += param.data.numpy()
+
+            episode_arr.append(episode)
+            reward = reward.sum()
+            reward_arr.append(reward)
+            diff_to_optim_val_arr.append(diff_to_optim_val)
+            diff_to_optim_x_arr.append(diff_to_optim_x)
+            val = env.func_val.sum()
+            function_val_arr.append(val)
+            # pdb.set_trace()
+            utils.curve_plot(reward_arr,episode_arr,'Episode','Reward',1)
+            utils.curve_plot(diff_to_optim_val_arr,episode_arr,'Episode','diff',2)
+            utils.curve_plot(diff_to_optim_x_arr,episode_arr,'Episode','diff_x',3)
+            utils.curve_plot(function_val_arr,episode_arr,'Episode','F value',4)
+
+            print('Training -- Episode [%d], Reward: %.4f, diff: %.4f,Diff_x: %.4f, Val: %.4f' % (episode+1, reward, diff_to_optim_val, diff_to_optim_x, val))
+            
+
+
+
+
+
+            
+            
+
+
+
+
 
 
 if __name__ == '__main__':
     t = Trainer()
     t.initialize()
-    t.fit()
+    t.fit_without_rl()
 
 
 
