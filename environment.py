@@ -61,10 +61,11 @@ class QuadraticEnvironment(object):
         self.gradient = np.einsum('ijk,ik->ij',self.H, self.current_iterate) + self.g 
         reward = self.func_val - func_val
         diff = np.sum(np.absolute(func_val - self.opti_func_val))/self.batch_size
+        diff_x = np.sum(np.absolute(self.opti_x.reshape(self.batch_size,self.dimensions) - self.current_iterate))/(self.batch_size*self.dimensions)
         # print(diff)
         self.func_val = func_val
         # import pdb; pdb.set_trace()        
-        return np.hstack((self.current_iterate, self.gradient, np.clip(np.expand_dims(self.func_val,1), -1e4, 1e4))), np.clip(reward, -1e4, 1e4),diff
+        return np.hstack((self.current_iterate, self.gradient, np.clip(np.expand_dims(self.func_val,1), -1e4, 1e4))), np.clip(reward, -1e4, 1e4),diff,diff_x
 
 
 class LogisticEnvironment(object):

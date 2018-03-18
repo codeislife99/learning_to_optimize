@@ -95,15 +95,17 @@ class Trainer(object):
             # generate state action sequence using current policy by evaluating the model
             diff_total = 0.0
             diff_last = 0.0
+            diff_x_last = 0.0
             for t in range(self.seq_length):
                 self.state.data.copy_(torch.from_numpy(current_state))
                 next_action, self.memory = self.agent.fp(current_state=self.state, memory=self.memory)
                 next_action = next_action.data.numpy()
                 state_history.append(current_state)
                 action_history.append(next_action)
-                current_state, current_reward,diff = env(self.step_size_map[next_action])
+                current_state, current_reward,diff,diff_x = env(self.step_size_map[next_action])
                 diff_total += diff
                 diff_last = diff
+                diff_x_last = diff_x
                 total_reward += current_reward
                 reward_history.append(current_reward)
             state_history = np.stack(state_history)
@@ -135,8 +137,8 @@ class Trainer(object):
             # curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
             # curve_plot(avgloss_arr,episode_arr,'Episode','Average Loss',3)
             # curve_plot(diff_arr,episode_arr,'Episode','Diff Value',4)
-            print('Training -- Episode [%d], Average Reward: %.4f, Average Loss: %.4f,Diff Last: %.4f'
-            % (episode+1, np.sum(grand_total_reward)/(episode+1), np.sum(grand_total_loss)/(episode+1),diff_last))
+            print('Training -- Episode [%d], Average Reward: %.4f, Average Loss: %.4f,Diff Last: %.4f,Diff X Last: %.4f'
+            % (episode+1, np.sum(grand_total_reward)/(episode+1), np.sum(grand_total_loss)/(episode+1),diff_last,diff_x_last))
             
             # tracker.print_diff()
             gc.collect()    
