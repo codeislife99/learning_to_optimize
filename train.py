@@ -20,11 +20,11 @@ import utils
 
 class Trainer(object):
     def __init__(self):
-        self.batch_size = 1
-        self.dimensions = 5
-        self.hidden_size = 10
+        self.batch_size = 1 # 256
+        self.dimensions = 5 # 100
+        self.hidden_size = 10 
         self.num_episodes = 500
-        self.seq_length = 15000
+        self.seq_length = 15000 # 100
 
         # set of learning rates from which agent chooses from
         # self.step_size_map = np.array([10**i for i in range(-10, -1)])        
