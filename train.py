@@ -36,7 +36,7 @@ class Trainer(object):
 
         self.agent = Agent(state_space_size=self.state_space_size, action_space_size=self.action_space_size, hidden_size=self.hidden_size)
 
-        self.optimizer = optim.SGD([{'params': self.agent.policy_step.parameters()}, {'params': self.agent.projection.parameters()}], lr=0.1, momentum=0.9)
+        self.optimizer = optim.SGD([{'params': self.agent.policy_step.parameters()}, {'params': self.agent.projection.parameters()}], lr=1 )#, momentum=0.9)
         
 
     def initialize(self):
@@ -132,11 +132,9 @@ class Trainer(object):
 
             utils.curve_plot(reward_arr,episode_arr,'Episode','Reward',0)
             utils.curve_plot(diff_arr,episode_arr,'Episode','Diff Value',1)
-            # utils.curve_plot(avgreward_arr,episode_arr,'Episode','Average Reward',2)
-            # utils.curve_plot(loss_arr,episode_arr,'Episode','Loss',3)
-            # utils.urve_plot(avgloss_arr,episode_arr,'Episode','Average Loss',4)
-            print('Training -- Episode [%d], Average Reward since episode 0: %.4f, total Reward: %.4f, Average Loss since episode 0: %.4f, Diff Last: %.4f,Diff X Last: %.4f'
-            % (episode_arr[-1], avgreward_arr[-1], reward_arr[-1], avgloss_arr[-1], diff_last, diff_x_last))
+            utils.curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
+            print('Training -- Episode [%d], Reward: %.4f, Loss: %.4f, Diff Last: %.4f,Diff X Last: %.4f'
+            % (episode_arr[-1], reward_arr[-1], loss_arr[-1], diff_last, diff_x_last))
             
             # tracker.print_diff()
             gc.collect()    
