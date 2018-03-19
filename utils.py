@@ -9,4 +9,4 @@ def curve_plot(plot_arr,episode_arr,xlabel,ylabel,number):
     plt.ylabel(ylabel)
     plt.xlabel(xlabel)
     plt.savefig(xlabel+'_'+ylabel+'_'+'.png')
-    plt.pause(0.05)
+    # plt.pause(0.05)
