@@ -96,43 +96,47 @@ class Trainer(object):
                 next_action = next_action.data.numpy()
                 state_history.append(current_state)
                 action_history.append(next_action)
-                current_state, current_reward,diff,diff_x = env(self.step_size_map[next_action])
+                current_state, current_reward, diff, diff_x = env(self.step_size_map[next_action])
+                reward_history.append(current_reward)
+
                 diff_total += diff
                 diff_last = diff
                 diff_x_last = diff_x
                 total_reward += current_reward
-                reward_history.append(current_reward)
+
             state_history = np.stack(state_history)
             action_history = np.stack(action_history)
             reward_history = np.stack(reward_history)
-
-            diff_total = diff_total/(self.seq_length)
-
             self.state_seq.data.copy_(torch.from_numpy(state_history))
             self.action_seq.data.copy_(torch.from_numpy(action_history))
             self.reward_seq.data.copy_(torch.from_numpy(reward_history))
-            grand_total_reward += total_reward
             current_loss = self.train_agent(state_history, action_history, reward_history)
-            # print(np.sum(current_loss))
+
+            diff_total = diff_total.sum() /(self.seq_length)
+            total_reward = total_reward.sum()
+            current_loss = current_loss.sum()
+
+
+
+            grand_total_reward += total_reward
             grand_total_loss += current_loss
             grand_total_diff += diff_total
+
             episode_arr.append(episode+1)
-            reward_arr.append(np.sum(total_reward))
-            diff_arr.append(np.sum(diff_total))
-            avgreward_arr.append(np.sum(grand_total_reward)/(episode+1))
-            loss_arr.append(np.sum(current_loss))
-            avgloss_arr.append(np.sum(grand_total_loss)/(episode+1))
-            diff_arr.append(np.sum(diff_total))
-            avgdiff_arr.append(np.sum(grand_total_diff)/(episode+1))
-            # print("Diff_TOTAL = ", diff_total)
-            # print("Diff_LAST = ", diff_last)
-            # utils.curve_plot(reward_arr,episode_arr,'Episode','Reward',0)
-            # utils.curve_plot(avgreward_arr,episode_arr,'Episode','Average Reward',1)
-            # utils.curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
-            # utils.urve_plot(avgloss_arr,episode_arr,'Episode','Average Loss',3)
-            # utils.curve_plot(diff_arr,episode_arr,'Episode','Diff Value',4)
-            print('Training -- Episode [%d], Average Reward: %.4f, Average Loss: %.4f,Diff Last: %.4f,Diff X Last: %.4f'
-            % (episode+1, np.sum(grand_total_reward)/(episode+1), np.sum(grand_total_loss)/(episode+1),diff_last,diff_x_last))
+            reward_arr.append(total_reward)
+            diff_arr.append(diff_total)
+            loss_arr.append(current_loss)
+            avgreward_arr.append(grand_total_reward/(episode+1))
+            avgloss_arr.append(grand_total_loss/(episode+1))
+            avgdiff_arr.append(grand_total_diff/(episode+1))
+
+            utils.curve_plot(reward_arr,episode_arr,'Episode','Reward',0)
+            utils.curve_plot(diff_arr,episode_arr,'Episode','Diff Value',1)
+            # utils.curve_plot(avgreward_arr,episode_arr,'Episode','Average Reward',2)
+            # utils.curve_plot(loss_arr,episode_arr,'Episode','Loss',3)
+            # utils.urve_plot(avgloss_arr,episode_arr,'Episode','Average Loss',4)
+            print('Training -- Episode [%d], Average Reward: %.4f, Reward: %.4f, Average Loss: %.4f,Diff Last: %.4f,Diff X Last: %.4f'
+            % (episode_arr[-1], avgreward_arr[-1], reward_arr[-1], avgloss_arr[-1], diff_last, diff_x_last))
             
             # tracker.print_diff()
             gc.collect()    
@@ -172,10 +176,10 @@ class Trainer(object):
             diff_to_optim_x_squared_arr.append(diff_to_optim_x_squared)
             val = env.func_val.sum()
             function_val_arr.append(val)
-            # utils.curve_plot(reward_arr,iter_arr,'iter','Reward',1)
-            # utils.curve_plot(diff_to_optim_val_arr,iter_arr,'iter','diff',2)
-            # utils.curve_plot(diff_to_optim_x_squared_arr,iter_arr,'iter','diff_x',3)
-            # utils.curve_plot(function_val_arr,iter_arr,'iter','value',4)
+            utils.curve_plot(reward_arr,iter_arr,'iter','Reward',1)
+            utils.curve_plot(diff_to_optim_val_arr,iter_arr,'iter','diff',2)
+            utils.curve_plot(diff_to_optim_x_squared_arr,iter_arr,'iter','diff_x',3)
+            utils.curve_plot(function_val_arr,iter_arr,'iter','value',4)
 
             print('Training -- iter [%d], Reward: %.4f, diff: %.4f,Diff_x: %.4f, Val: %.4f' % (iter+1, reward, diff_to_optim_val, diff_to_optim_x_squared, val))
             
@@ -193,7 +197,9 @@ class Trainer(object):
 if __name__ == '__main__':
     t = Trainer()
     t.initialize()
-    t.fit_without_rl()
+    t.fit()
+
+    # t.fit_without_rl()
 
 
 
