@@ -135,7 +135,7 @@ class Trainer(object):
             # utils.curve_plot(avgreward_arr,episode_arr,'Episode','Average Reward',2)
             # utils.curve_plot(loss_arr,episode_arr,'Episode','Loss',3)
             # utils.urve_plot(avgloss_arr,episode_arr,'Episode','Average Loss',4)
-            print('Training -- Episode [%d], Average Reward: %.4f, Reward: %.4f, Average Loss: %.4f,Diff Last: %.4f,Diff X Last: %.4f'
+            print('Training -- Episode [%d], Average Reward since episode 0: %.4f, total Reward: %.4f, Average Loss since episode 0: %.4f, Diff Last: %.4f,Diff X Last: %.4f'
             % (episode_arr[-1], avgreward_arr[-1], reward_arr[-1], avgloss_arr[-1], diff_last, diff_x_last))
             
             # tracker.print_diff()
