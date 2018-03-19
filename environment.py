@@ -58,13 +58,17 @@ class QuadraticEnvironment(object):
             reward: [B]
         '''
         self.current_iterate = self.current_iterate - (self.gradient.T*step_size).T
+        # print(self.current_iterate)
         func_val = .5 * np.einsum('ij,ijk,ik->i', self.current_iterate, self.H, self.current_iterate) + np.einsum('ij,ij->i', self.current_iterate, self.g)
         self.gradient = np.einsum('ijk,ik->ij',self.H, self.current_iterate) + self.g 
         reward = self.func_val - func_val
+        # reward = -self.func_val + self.opti_func_val
+
         diff = np.sum(func_val - self.opti_func_val)/self.batch_size
         diff_x_squared = np.sum((self.opti_x.reshape(self.batch_size,self.dimensions) - self.current_iterate)* (self.opti_x.reshape(self.batch_size,self.dimensions) - self.current_iterate))/ self.batch_size
+        diff_arr = func_val - self.opti_func_val
         self.func_val = func_val     
-        return np.hstack((self.current_iterate, self.gradient, np.clip(np.expand_dims(self.func_val,1), -1e4, 1e4))), np.clip(reward, -1e4, 1e4),diff,diff_x_squared
+        return np.hstack((self.current_iterate, self.gradient, np.clip(np.expand_dims(self.func_val,1), -1e4, 1e4))), np.clip(reward, -1e4, 1e4),diff,diff_x_squared,diff_arr
 
 
 class LogisticEnvironment(object):
