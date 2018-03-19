@@ -31,7 +31,7 @@ class Agent(object):
             action probabilites, memory state 
         """
         lstm_state = self.policy_step(x, state_tm1)
-        y = self.projection(lstm_state[-1])
+        y = self.projection(lstm_state[0])
         return y, lstm_state
 
     def full_seq_loss(self, state_seq, action_seq, reward_seq, init_memory):

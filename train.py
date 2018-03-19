@@ -215,7 +215,7 @@ if __name__ == '__main__':
     t.initialize()
     t.fit()
 
-    t.fit_without_rl()
+    # t.fit_without_rl()
 
 
 
