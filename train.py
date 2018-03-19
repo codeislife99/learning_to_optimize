@@ -1,4 +1,3 @@
-
 from agent import Agent
 from environment import QuadraticEnvironment
 import numpy as np
@@ -25,10 +24,12 @@ class Trainer(object):
         self.dimensions = 100
         self.hidden_size = 10
         self.num_episodes = 500
-        self.seq_length = 100
+        self.seq_length = 1000
 
         # set of learning rates from which agent chooses from
-        self.step_size_map = np.array([10**i for i in range(-6, 1)])
+        # self.step_size_map = np.array([10**i for i in range(-7, 0)])
+        self.step_size_map = np.array([1])
+
         self.action_space_size = len(self.step_size_map)
 
         self.state_space_size = 2 * self.dimensions + 1
@@ -36,7 +37,9 @@ class Trainer(object):
 
         self.agent = Agent(state_space_size=self.state_space_size, action_space_size=self.action_space_size, hidden_size=self.hidden_size)
 
-        self.optimizer = optim.SGD([{'params': self.agent.policy_step.parameters()}, {'params': self.agent.projection.parameters()}], lr=1 )#, momentum=0.9)
+        # self.optimizer = optim.SGD([{'params': self.agent.policy_step.parameters()}, {'params': self.agent.projection.parameters()}], lr=10 , momentum=0.9)
+        params = list(self.agent.policy_step.parameters()) + list(self.agent.projection.parameters())
+        self.optimizer = optim.SGD(params, lr=0.01 )#, momentum=0.9)
         
 
     def initialize(self):
@@ -49,11 +52,12 @@ class Trainer(object):
             Variable(torch.zeros(self.batch_size, self.hidden_size)), # hidden state
             Variable(torch.zeros(self.batch_size, self.hidden_size)), # cell state
         )
-        self.state_seq = Variable(torch.FloatTensor(self.seq_length, self.batch_size, self.state_space_size))
-        self.action_seq = Variable(torch.FloatTensor(self.seq_length, self.batch_size))
-        self.reward_seq = Variable(torch.FloatTensor(self.seq_length, self.batch_size))
+        # self.state_seq = Variable(torch.FloatTensor(self.seq_length, self.batch_size, self.state_space_size))
+        # self.action_seq = Variable(torch.LongTensor(self.seq_length, self.batch_size))
+        # self.reward_seq = Variable(torch.FloatTensor(self.seq_length, self.batch_size))
 
     def train_agent(self, state_seq, action_seq, reward_seq):
+        reward_seq = (reward_seq - reward_seq.mean()) / (reward_seq.std() + np.finfo(np.float32).eps)
         self.optimizer.zero_grad()
         policy_loss = self.agent.full_seq_loss(state_seq, action_seq, reward_seq, self.init_memory)
         reinforce_loss = policy_loss.mean()
@@ -75,7 +79,8 @@ class Trainer(object):
         avgloss_arr = []
         diff_arr = []
         avgdiff_arr = []
-        for episode in range(self.num_episodes):
+        episode = 0
+        while episode < self.num_episodes:
             # tracker = SummaryTracker()
 
             env.reset_state()
@@ -89,28 +94,32 @@ class Trainer(object):
             diff_total = 0.0
             diff_last = 0.0
             diff_x_last = 0.0
-            for t in range(self.seq_length):
-                self.state.data.copy_(torch.from_numpy(current_state))
-                next_action, self.memory = self.agent.fp(current_state=self.state, memory=self.memory)
-                
-                next_action = next_action.data.numpy()
-                state_history.append(current_state)
-                action_history.append(next_action)
-                current_state, current_reward, diff, diff_x = env(self.step_size_map[next_action])
-                reward_history.append(current_reward)
+            try:
+                for t in range(self.seq_length):
+                    self.state.data.copy_(torch.from_numpy(current_state))
+                    next_action, self.memory = self.agent.fp(current_state=self.state, memory=self.memory)
+                    
+                    next_action = next_action.data.numpy()
+                    state_history.append(current_state)
+                    action_history.append(next_action)
+                    current_state, current_reward, diff, diff_x = env(self.step_size_map[next_action])
+                    reward_history.append(current_reward)
 
-                diff_total += diff
-                diff_last = diff
-                diff_x_last = diff_x
-                total_reward += current_reward
+                    diff_total += diff
+                    diff_last = diff
+                    diff_x_last = diff_x
+                    total_reward += current_reward
+            except KeyboardInterrupt:
+                raise
+            except:
+                print("Out of Hand")
+                continue
 
             state_history = np.stack(state_history)
             action_history = np.stack(action_history)
             reward_history = np.stack(reward_history)
-            self.state_seq.data.copy_(torch.from_numpy(state_history))
-            self.action_seq.data.copy_(torch.from_numpy(action_history))
-            self.reward_seq.data.copy_(torch.from_numpy(reward_history))
             current_loss = self.train_agent(state_history, action_history, reward_history)
+            # current_loss = self.train_agent(self.state_seq, self.action_seq, self.reward_seq)
 
             diff_total = diff_total.sum() /(self.seq_length)
             total_reward = total_reward.sum()
@@ -130,15 +139,15 @@ class Trainer(object):
             avgloss_arr.append(grand_total_loss/(episode+1))
             avgdiff_arr.append(grand_total_diff/(episode+1))
 
-            utils.curve_plot(reward_arr,episode_arr,'Episode','Reward',0)
-            utils.curve_plot(diff_arr,episode_arr,'Episode','Diff Value',1)
-            utils.curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
+            # utils.curve_plot(reward_arr,episode_arr,'Episode','Reward',0)
+            # utils.curve_plot(diff_arr,episode_arr,'Episode','Diff Value',1)
+            # utils.curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
             print('Training -- Episode [%d], Reward: %.4f, Loss: %.4f, Diff Last: %.4f,Diff X Last: %.4f'
             % (episode_arr[-1], reward_arr[-1], loss_arr[-1], diff_last, diff_x_last))
             
             # tracker.print_diff()
             gc.collect()    
-
+            episode += 1
 
 
     def fit_without_rl(self, optim_type='adam'):
@@ -146,7 +155,7 @@ class Trainer(object):
         param = Variable(torch.zeros(batch_size, self.dimensions), requires_grad=True)
         env = QuadraticEnvironment(batch_size=batch_size, dimensions=self.dimensions)
         if optim_type == 'sgd':
-            optimizer = optim.SGD([{'params': param}], lr=1) #, momentum=0.9, weight_decay=0.9)
+            optimizer = optim.SGD([{'params': param}], lr=0.1)# , momentum=0.9, weight_decay=0.9)
         elif optim_type == 'adam':
             optimizer = optim.Adam([{'params': param}], lr=0.01)
 
@@ -174,10 +183,10 @@ class Trainer(object):
             diff_to_optim_x_squared_arr.append(diff_to_optim_x_squared)
             val = env.func_val.sum()
             function_val_arr.append(val)
-            utils.curve_plot(reward_arr,iter_arr,'iter','Reward',1)
-            utils.curve_plot(diff_to_optim_val_arr,iter_arr,'iter','diff',2)
-            utils.curve_plot(diff_to_optim_x_squared_arr,iter_arr,'iter','diff_x',3)
-            utils.curve_plot(function_val_arr,iter_arr,'iter','value',4)
+            # utils.curve_plot(reward_arr,iter_arr,'iter','Reward',1)
+            # utils.curve_plot(diff_to_optim_val_arr,iter_arr,'iter','diff',2)
+            # utils.curve_plot(diff_to_optim_x_squared_arr,iter_arr,'iter','diff_x',3)
+            # utils.curve_plot(function_val_arr,iter_arr,'iter','value',4)
 
             print('Training -- iter [%d], Reward: %.4f, diff: %.4f,Diff_x: %.4f, Val: %.4f' % (iter+1, reward, diff_to_optim_val, diff_to_optim_x_squared, val))
             

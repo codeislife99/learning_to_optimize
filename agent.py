@@ -31,7 +31,7 @@ class Agent(object):
             action probabilites, memory state 
         """
         lstm_state = self.policy_step(x, state_tm1)
-        y = self.projection(lstm_state[0])
+        y = self.projection(lstm_state[-1])
         return y, lstm_state
 
     def full_seq_loss(self, state_seq, action_seq, reward_seq, init_memory):
@@ -39,15 +39,23 @@ class Agent(object):
         returns policy loss
         """
         seq_length = len(state_seq)
+        # seq_length = state_seq.size(0)
         loss = 0.0
+        # value_losses.append(F.smooth_l1_loss(value, Variable(torch.Tensor([r]))))
+
         memory = init_memory
         criterion = nn.CrossEntropyLoss()
         for i in range(seq_length):
             current_state = Variable(torch.from_numpy(state_seq[i].astype("float32")))
             current_reward = Variable(torch.from_numpy(reward_seq[i].astype("float32")))
             current_action = Variable(torch.from_numpy(action_seq[i].astype("int64")))
+
+            # current_state  = state_seq[i]
+            # current_reward = reward_seq[i]
+            # current_action = action_seq[i]
             logits, memory = self.step(current_state, memory)
-            loss += current_reward * criterion(logits, current_action)
+            # value_loss = F.smooth_l1_loss(value, Variable(torch.Tensor([r])))
+            loss += current_reward * criterion(logits, current_action) #+ current_reward
         return loss
 
     def fp(self, current_state, memory):
