@@ -139,23 +139,23 @@ class Trainer(object):
 
 
 
-    def fit_without_rl(self, optim_type='sgd'):
+    def fit_without_rl(self, optim_type='adam'):
         batch_size = 1
         param = Variable(torch.zeros(batch_size, self.dimensions), requires_grad=True)
         env = QuadraticEnvironment(batch_size=batch_size, dimensions=self.dimensions)
         if optim_type == 'sgd':
             optimizer = optim.SGD([{'params': param}], lr=1) #, momentum=0.9, weight_decay=0.9)
         elif optim_type == 'adam':
-            optimizer = optim.Adam([{'params': param}], lr=0.001)
+            optimizer = optim.Adam([{'params': param}], lr=0.01)
 
-        episode_arr = []
+        iter_arr = []
         reward_arr = []
         diff_to_optim_val_arr = []
-        diff_to_optim_x_arr = []
+        diff_to_optim_x_squared_arr = []
         function_val_arr = []
 
-        for episode in range(self.num_episodes):
-            state, reward, diff_to_optim_val, diff_to_optim_x = env(step_size=0.)
+        for iter in range(self.seq_length):
+            state, reward, diff_to_optim_val, diff_to_optim_x_squared = env(step_size=0.)
             current_iterate, current_gradient = state[:, :self.dimensions], state[:, self.dimensions: 2 * self.dimensions]
             
             optimizer.zero_grad()
@@ -165,23 +165,20 @@ class Trainer(object):
             optimizer.step()
             env.current_iterate += param.data.numpy()
 
-            episode_arr.append(episode)
+            iter_arr.append(iter)
             reward = reward.sum()
             reward_arr.append(reward)
             diff_to_optim_val_arr.append(diff_to_optim_val)
-            diff_to_optim_x_arr.append(diff_to_optim_x)
+            diff_to_optim_x_squared_arr.append(diff_to_optim_x_squared)
             val = env.func_val.sum()
             function_val_arr.append(val)
-            # pdb.set_trace()
-            utils.curve_plot(reward_arr,episode_arr,'Episode','Reward',1)
-            utils.curve_plot(diff_to_optim_val_arr,episode_arr,'Episode','diff',2)
-            utils.curve_plot(diff_to_optim_x_arr,episode_arr,'Episode','diff_x',3)
-            utils.curve_plot(function_val_arr,episode_arr,'Episode','value',4)
+            # utils.curve_plot(reward_arr,iter_arr,'iter','Reward',1)
+            # utils.curve_plot(diff_to_optim_val_arr,iter_arr,'iter','diff',2)
+            # utils.curve_plot(diff_to_optim_x_squared_arr,iter_arr,'iter','diff_x',3)
+            # utils.curve_plot(function_val_arr,iter_arr,'iter','value',4)
 
-            print('Training -- Episode [%d], Reward: %.4f, diff: %.4f,Diff_x: %.4f, Val: %.4f' % (episode+1, reward, diff_to_optim_val, diff_to_optim_x, val))
+            print('Training -- iter [%d], Reward: %.4f, diff: %.4f,Diff_x: %.4f, Val: %.4f' % (iter+1, reward, diff_to_optim_val, diff_to_optim_x_squared, val))
             
-
-
 
 
 
