@@ -12,7 +12,7 @@ import time
 import argparse
 import pdb
 import matplotlib.pyplot as plt 
-from pympler.tracker import SummaryTracker
+# from pympler.tracker import SummaryTracker
 import gc
 from pylab import *
 import utils
@@ -20,18 +20,25 @@ import utils
 
 class Trainer(object):
     def __init__(self):
-        self.batch_size = 256
-        self.dimensions = 100
+        self.batch_size = 1
+        self.dimensions = 5
         self.hidden_size = 10
         self.num_episodes = 500
-        self.seq_length = 1000
+        self.seq_length = 15000
 
         # set of learning rates from which agent chooses from
-        # self.step_size_map = np.array([10**i for i in range(-7, 0)])
-        self.step_size_map = np.array([1])
+        # self.step_size_map = np.array([10**i for i in range(-10, -1)])        
+        step_size_map = [10**i for i in range(-6, -1)]
+        self.step_size_map = []
+        for step in step_size_map:
+            for divider in range(2,10):
+                self.step_size_map.append(1.0*step/divider)
+
+        self.step_size_map = np.array(self.step_size_map)
+        # self.step_size_map = np.array([0.01])
 
         self.action_space_size = len(self.step_size_map)
-
+        print("Action Space Size = ", self.action_space_size)
         self.state_space_size = 2 * self.dimensions + 1
 
 
@@ -57,7 +64,7 @@ class Trainer(object):
         # self.reward_seq = Variable(torch.FloatTensor(self.seq_length, self.batch_size))
 
     def train_agent(self, state_seq, action_seq, reward_seq):
-        reward_seq = (reward_seq - reward_seq.mean()) / (reward_seq.std() + np.finfo(np.float32).eps)
+        # reward_seq = (reward_seq - reward_seq.mean()) / (reward_seq.std() + np.finfo(np.float32).eps)
         self.optimizer.zero_grad()
         policy_loss = self.agent.full_seq_loss(state_seq, action_seq, reward_seq, self.init_memory)
         reinforce_loss = policy_loss.mean()
@@ -94,6 +101,8 @@ class Trainer(object):
             diff_total = 0.0
             diff_last = 0.0
             diff_x_last = 0.0
+            diff_arr_last = 0.0 
+            # reward_last = 0.0 
             try:
                 for t in range(self.seq_length):
                     self.state.data.copy_(torch.from_numpy(current_state))
@@ -102,7 +111,10 @@ class Trainer(object):
                     next_action = next_action.data.numpy()
                     state_history.append(current_state)
                     action_history.append(next_action)
-                    current_state, current_reward, diff, diff_x = env(self.step_size_map[next_action])
+                    current_state, current_reward, diff, diff_x,diff_arr_last = env(self.step_size_map[next_action])
+                    # if t%100 == 0:
+                    #     pass
+                    #     print(current_reward)
                     reward_history.append(current_reward)
 
                     diff_total += diff
@@ -114,13 +126,10 @@ class Trainer(object):
             except:
                 print("Out of Hand")
                 continue
-
             state_history = np.stack(state_history)
             action_history = np.stack(action_history)
             reward_history = np.stack(reward_history)
             current_loss = self.train_agent(state_history, action_history, reward_history)
-            # current_loss = self.train_agent(self.state_seq, self.action_seq, self.reward_seq)
-
             diff_total = diff_total.sum() /(self.seq_length)
             total_reward = total_reward.sum()
             current_loss = current_loss.sum()
@@ -138,12 +147,12 @@ class Trainer(object):
             avgreward_arr.append(grand_total_reward/(episode+1))
             avgloss_arr.append(grand_total_loss/(episode+1))
             avgdiff_arr.append(grand_total_diff/(episode+1))
-
             # utils.curve_plot(reward_arr,episode_arr,'Episode','Reward',0)
             # utils.curve_plot(diff_arr,episode_arr,'Episode','Diff Value',1)
             # utils.curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
-            print('Training -- Episode [%d], Reward: %.4f, Loss: %.4f, Diff Last: %.4f,Diff X Last: %.4f'
-            % (episode_arr[-1], reward_arr[-1], loss_arr[-1], diff_last, diff_x_last))
+            print("Diff Arr Last = ",diff_arr_last)
+            print('Training -- Episode [%d], Reward: %.4f, Last Reward : %.4f, Loss: %.4f, Diff Last: %.4f,Diff X Last: %.4f'
+            % (episode_arr[-1], reward_arr[-1], reward_history[-1][-1],loss_arr[-1], diff_last, diff_x_last))
             
             # tracker.print_diff()
             gc.collect()    
@@ -166,7 +175,7 @@ class Trainer(object):
         function_val_arr = []
 
         for iter in range(self.seq_length):
-            state, reward, diff_to_optim_val, diff_to_optim_x_squared = env(step_size=0.)
+            state, reward, diff_to_optim_val, diff_to_optim_x_squared,_ = env(step_size=0.)
             current_iterate, current_gradient = state[:, :self.dimensions], state[:, self.dimensions: 2 * self.dimensions]
             
             optimizer.zero_grad()
@@ -206,7 +215,7 @@ if __name__ == '__main__':
     t.initialize()
     t.fit()
 
-    # t.fit_without_rl()
+    t.fit_without_rl()
 
 
 
