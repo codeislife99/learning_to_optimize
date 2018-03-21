@@ -72,3 +72,5 @@ class Agent(object):
         # except:
         #     import pdb; pdb.set_trace()
         return next_action, updated_memory
+
+    

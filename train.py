@@ -81,11 +81,13 @@ class Trainer(object):
         grand_total_diff = 0.0 
         episode_arr = []
         reward_arr = []
+        final_reward_arr = []
         avgreward_arr = []
         loss_arr = []
         avgloss_arr = []
         diff_arr = []
         avgdiff_arr = []
+
         episode = 0
         while episode < self.num_episodes:
             # tracker = SummaryTracker()
@@ -104,6 +106,7 @@ class Trainer(object):
             diff_arr_last = 0.0 
             # reward_last = 0.0 
             try:
+                seqs = []
                 for t in range(self.seq_length):
                     self.state.data.copy_(torch.from_numpy(current_state))
                     next_action, self.memory = self.agent.fp(current_state=self.state, memory=self.memory)
@@ -121,10 +124,17 @@ class Trainer(object):
                     diff_last = diff
                     diff_x_last = diff_x
                     total_reward += current_reward
+
+                    # print(reward_arr)
+                    # if episode == self.num_episodes - 1 and t % 100 == 0:
+                    #     reward_arr.append(np.sum(total_reward))
+                    #     seqs.append(t)
+                    #     utils.curve_plot(reward_arr,seqs,'Iterations','Reward',0)
             except KeyboardInterrupt:
                 raise
             except:
                 print("Out of Hand")
+                raise
                 continue
             state_history = np.stack(state_history)
             action_history = np.stack(action_history)
@@ -141,23 +151,24 @@ class Trainer(object):
             grand_total_diff += diff_total
 
             episode_arr.append(episode+1)
-            reward_arr.append(total_reward)
+            final_reward_arr.append(current_reward)
             diff_arr.append(diff_total)
             loss_arr.append(current_loss)
             avgreward_arr.append(grand_total_reward/(episode+1))
             avgloss_arr.append(grand_total_loss/(episode+1))
             avgdiff_arr.append(grand_total_diff/(episode+1))
-            # utils.curve_plot(reward_arr,episode_arr,'Episode','Reward',0)
             # utils.curve_plot(diff_arr,episode_arr,'Episode','Diff Value',1)
             # utils.curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
             print("Diff Arr Last = ",diff_arr_last)
             print('Training -- Episode [%d], Reward: %.4f, Last Reward : %.4f, Loss: %.4f, Diff Last: %.4f,Diff X Last: %.4f'
-            % (episode_arr[-1], reward_arr[-1], reward_history[-1][-1],loss_arr[-1], diff_last, diff_x_last))
+            % (episode_arr[-1], total_reward, reward_history[-1][-1],loss_arr[-1], diff_last, diff_x_last))
             
             # tracker.print_diff()
             gc.collect()    
             episode += 1
 
+        utils.save_agent(agent=self.agent, dimension=self.dimensions, episode=episode, sequence_length=self.seq_length)
+    
 
     def fit_without_rl(self, optim_type='adam'):
         batch_size = 1
@@ -202,6 +213,9 @@ class Trainer(object):
 
 
 
+    def test(self, path):
+        utils.load_agent(agent=self.agent, path=path)
+
             
             
 
@@ -213,7 +227,9 @@ class Trainer(object):
 if __name__ == '__main__':
     t = Trainer()
     t.initialize()
-    t.fit()
+    # t.fit()
+    model_path = 'logs/dim_5_seql_15000_episode_2.pth'
+    t.test(path=model_path)
 
     # t.fit_without_rl()
 
