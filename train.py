@@ -1,5 +1,5 @@
 from agent import Agent
-from environment import QuadraticEnvironment
+from environment import SimpleNeuralNetwork
 import numpy as np
 import pickle
 import cProfile
@@ -21,7 +21,7 @@ import utils
 class Trainer(object):
     def __init__(self):
         self.batch_size = 1 # 256
-        self.dimensions = 5 # 100
+        self.dimensions = 12 # 100
         self.hidden_size = 10 
         self.num_episodes = 500
         self.seq_length = 15000 # 100
@@ -75,7 +75,7 @@ class Trainer(object):
 
     def fit(self):
 
-        env = QuadraticEnvironment(batch_size=self.batch_size, dimensions=self.dimensions)
+        env = SimpleNeuralNetwork(batch_size=self.batch_size, dimensions=self.dimensions)
         grand_total_reward = 0.0 
         grand_total_loss = 0.0
         grand_total_diff = 0.0 
@@ -140,9 +140,9 @@ class Trainer(object):
             action_history = np.stack(action_history)
             reward_history = np.stack(reward_history)
             current_loss = self.train_agent(state_history, action_history, reward_history)
-            diff_total = diff_total.sum() /(self.seq_length)
-            total_reward = total_reward.sum()
-            current_loss = current_loss.sum()
+            diff_total = sum(diff_total) /(self.seq_length)
+            total_reward = sum(total_reward)
+            current_loss = sum(current_loss)
 
 
 
@@ -173,7 +173,7 @@ class Trainer(object):
     def fit_without_rl(self, optim_type='adam'):
         batch_size = 1
         param = Variable(torch.zeros(batch_size, self.dimensions), requires_grad=True)
-        env = QuadraticEnvironment(batch_size=batch_size, dimensions=self.dimensions)
+        env = SimpleNeuralNetwork(batch_size=self.batch_size, dimensions=self.dimensions)
         if optim_type == 'sgd':
             optimizer = optim.SGD([{'params': param}], lr=0.1)# , momentum=0.9, weight_decay=0.9)
         elif optim_type == 'adam':
@@ -214,7 +214,7 @@ class Trainer(object):
 
 
     def test(self, path):
-        utils.load_agent(agent=self.agent, path=path)
+        utils.load(agent=self.agent, path=path)
 
             
             
@@ -227,7 +227,7 @@ class Trainer(object):
 if __name__ == '__main__':
     t = Trainer()
     t.initialize()
-    # t.fit()
+    t.fit()
     model_path = 'logs/dim_5_seql_15000_episode_2.pth'
     t.test(path=model_path)
 

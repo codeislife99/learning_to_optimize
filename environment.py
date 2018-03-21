@@ -192,13 +192,14 @@ class _MLP(nn.Module):
 
 class SimpleNeuralNetwork(object):
 
-    def __init__(self, batch_size, dimensions, n_samples=100, hidden_dim=10):
+    def __init__(self, batch_size, dimensions, input_dimensions=2, n_samples=100, hidden_dim=2):
         # TODO: definition of dimension
         from dataset import get_synthetic
-        data_x, data_y = get_synthetic(n_samples, dimensions, n_classes=2)
+        data_x, data_y = get_synthetic(n_samples, input_dimensions, n_classes=2, n_clusters_per_class=2)
         self.data_x = torch.from_numpy(data_x.astype("float32"))
         self.data_y = torch.from_numpy(data_y.astype("int64"))
         self.batch_size = batch_size
+        self.input_dimensions = input_dimensions
         self.dimensions = dimensions
         self.hidden_dim = hidden_dim
         self.reset_state()
@@ -209,7 +210,8 @@ class SimpleNeuralNetwork(object):
     def reset_state(self):
         data_x = Variable(self.data_x, volatile=False)
         data_y = Variable(self.data_y, volatile=False)
-        self.model = _MLP(self.dimensions, self.hidden_dim, 2, 3)
+        self.model = _MLP(self.input_dimensions, self.hidden_dim, 2, 2)
+        assert sum(map(lambda x: x.numel(), self.model.parameters())) == self.dimensions
         self.model.zero_grad()
         loss = self.model.get_loss(data_x, data_y)
         loss.backward()
@@ -226,4 +228,20 @@ class SimpleNeuralNetwork(object):
         for param in self.model.parameters():
             if param.grad is None:
                 continue
-            param.data.add_(-step_size, param.grad.data)
+            param.data.add_(-np.asscalar(step_size), param.grad.data)
+        func_val = loss.data[0]
+        self.current_iterate = self.model.get_weights()
+        self.gradient = self.model.get_grad()
+        reward = self.func_val - func_val
+        reward = np.array([reward])
+        self.func_val = func_val
+
+        diff = func_val
+        diff_x_squared = 0.0
+        diff_arr = 0.0
+
+        return np.hstack((self.current_iterate, self.gradient, np.clip(np.expand_dims(self.func_val,1), -1e4, 1e4))), \
+               np.clip(reward, -1e4, 1e4),      \
+               diff,                            \
+               diff_x_squared,                  \
+               diff_arr
