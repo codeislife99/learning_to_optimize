@@ -1,5 +1,5 @@
 from agent import Agent
-from environment import QuadraticEnvironment
+from environment import QuadraticEnvironment, LogisticEnvironment
 import numpy as np
 import pickle
 import cProfile
@@ -24,7 +24,7 @@ class Trainer(object):
         self.dimensions = 5 # 100
         self.hidden_size = 10 
         self.num_episodes = 100
-        self.seq_length = 150 # 100
+        self.seq_length = 15000
 
         # set of learning rates from which agent chooses from
         # self.step_size_map = np.array([10**i for i in range(-10, -1)])        
@@ -46,7 +46,7 @@ class Trainer(object):
 
         # self.optimizer = optim.SGD([{'params': self.agent.policy_step.parameters()}, {'params': self.agent.projection.parameters()}], lr=10 , momentum=0.9)
         params = list(self.agent.policy_step.parameters()) + list(self.agent.projection.parameters())
-        self.optimizer = optim.SGD(params, lr=0.01 )#, momentum=0.9)
+        self.optimizer = optim.Adam(params, lr=0.01 )#, momentum=0.9)
         
 
     def initialize(self):
@@ -59,9 +59,6 @@ class Trainer(object):
             Variable(torch.zeros(self.batch_size, self.hidden_size)), # hidden state
             Variable(torch.zeros(self.batch_size, self.hidden_size)), # cell state
         )
-        # self.state_seq = Variable(torch.FloatTensor(self.seq_length, self.batch_size, self.state_space_size))
-        # self.action_seq = Variable(torch.LongTensor(self.seq_length, self.batch_size))
-        # self.reward_seq = Variable(torch.FloatTensor(self.seq_length, self.batch_size))
 
     def train_agent(self, state_seq, action_seq, reward_seq):
         # reward_seq = (reward_seq - reward_seq.mean()) / (reward_seq.std() + np.finfo(np.float32).eps)
@@ -79,6 +76,7 @@ class Trainer(object):
         """
 
         env = QuadraticEnvironment(batch_size=self.batch_size, dimensions=self.dimensions)
+        # env = LogisticEnvironment(batch_size=self.batch_size, dimensions=self.dimensions)
         grand_total_reward = 0.0 
         grand_total_loss = 0.0
         grand_total_diff = 0.0 
@@ -131,10 +129,10 @@ class Trainer(object):
                     total_reward += current_reward
 
                     # print(reward_arr)
-                    if episode == self.num_episodes - 1 and t % 100 == 0:
-                        reward_arr.append(np.sum(total_reward))
-                        seqs.append(t)
-                        utils.curve_plot(reward_arr,seqs,'Iterations after final episode','Reward',0)
+                    # if episode == self.num_episodes - 1 and t % 100 == 0:
+                    #     reward_arr.append(np.sum(total_reward))
+                    #     seqs.append(t)
+                    #     utils.curve_plot(reward_arr,seqs,'Iterations after final episode','Reward',0)
             except KeyboardInterrupt:
                 raise
             except:
@@ -177,7 +175,7 @@ class Trainer(object):
             gc.collect()    
             episode += 1
 
-            if episode % 10 == 0:
+            if episode % 20 == 0:
                 utils.save_agent(agent=self.agent, dimension=self.dimensions, episode=episode, sequence_length=self.seq_length)
         
 
@@ -187,13 +185,10 @@ class Trainer(object):
         utils.curve_plot(acc_reward_arr,episode_arr,'Episode','Reward',3)
         utils.curve_plot(diff_x_arr,episode_arr,'Episode','Diff X',4)
 
-    def fit_without_rl(self, env, optim_type='adam'):
+    def fit_without_rl(self, env):
         batch_size = 1
-        param = Variable(torch.zeros(batch_size, self.dimensions), requires_grad=True)
-        if optim_type == 'sgd':
-            optimizer = optim.SGD([{'params': param}], lr=0.1)# , momentum=0.9, weight_decay=0.9)
-        elif optim_type == 'adam':
-            optimizer = optim.Adam([{'params': param}], lr=0.1)
+        param = Variable(torch.zeros(batch_size, self.dimensions), requires_grad=True)            
+        optimizer = optim.Adam([{'params': param}], lr=0.1)
 
         env.reset_state()
         iter_arr = []
@@ -216,19 +211,59 @@ class Trainer(object):
             reward = reward.sum()
             val = env.func_val.sum()
 
-            if iter % 1 == 0:
+            if iter % 200 == 0:
                 iter_arr.append(iter)
                 reward_arr.append(reward)
                 diff_to_optim_val_arr.append(diff_to_optim_val)
                 diff_to_optim_x_squared_arr.append(diff_to_optim_x_squared)
                 function_val_arr.append(val)
-        utils.curve_plot(reward_arr,iter_arr,'iter','Adam Reward',0)
-        utils.curve_plot(diff_to_optim_val_arr,iter_arr,'iter','Adam diff',1)
-        utils.curve_plot(diff_to_optim_x_squared_arr,iter_arr,'iter','Adam diff_x',2)
-            # utils.curve_plot(function_val_arr,iter_arr,'iter','value',4)
-
+        utils.curve_plot(reward_arr,iter_arr,'iter','Reward',0,label='adam')
+        utils.curve_plot(diff_to_optim_val_arr,iter_arr,'iter','diff',1, label='adam')
+        utils.curve_plot(diff_to_optim_x_squared_arr,iter_arr,'iter','diff_x',2, label='adam')
+         
+        utils.curve_plot(function_val_arr, iter_arr, 'Iterations', 'Function Value', 3, label='adam')
             # print('Training -- iter [%d], Reward: %.4f, diff: %.4f,Diff_x: %.4f, Val: %.4f' % (iter+1, reward, diff_to_optim_val, diff_to_optim_x_squared, val))
+        
+        param = Variable(torch.zeros(batch_size, self.dimensions), requires_grad=True)    
+        optimizer = optim.SGD([{'params': param}], lr=0.1)# , momentum=0.9, weight_decay=0.9)
+        env.reset_state()
+        iter_arr = []
+        reward_arr = []
+        diff_to_optim_val_arr = []
+        diff_to_optim_x_squared_arr = []
+        function_val_arr = []
+
+        for iter in range(self.seq_length):
+            state, reward, diff_to_optim_val, diff_to_optim_x_squared,_ = env(step_size=0.)
+            current_iterate, current_gradient = state[:, :self.dimensions], state[:, self.dimensions: 2 * self.dimensions]
             
+            optimizer.zero_grad()
+            param.data.zero_()
+            param.sum().backward()
+            param.grad.data.copy_(torch.from_numpy(current_gradient))
+            optimizer.step()
+            try:
+                # print("YOLO")
+                # print(param.data.numpy())
+                # print(env.current_iterate)
+                env.current_iterate += param.data.numpy()
+            except: 
+                print("YOLO2")
+                pdb.set_trace()
+
+            reward = reward.sum()
+            val = env.func_val.sum()
+
+            if iter % 200 == 0:
+                iter_arr.append(iter)
+                reward_arr.append(reward)
+                diff_to_optim_val_arr.append(diff_to_optim_val)
+                diff_to_optim_x_squared_arr.append(diff_to_optim_x_squared)
+                function_val_arr.append(val)
+        utils.curve_plot(reward_arr,iter_arr,'iter','Reward',0, label='sgd')
+        utils.curve_plot(diff_to_optim_val_arr,iter_arr,'iter','Diff to optimal value',1, label='sgd')
+        utils.curve_plot(diff_to_optim_x_squared_arr,iter_arr,'iter','Distance to optimal point',2, label='sgd')
+        utils.curve_plot(function_val_arr, iter_arr, 'Iterations', 'Function Value', 3, label='sgd')
 
 
 
@@ -240,6 +275,8 @@ class Trainer(object):
         utils.load_agent(agent=self.agent, path=path)
         batch_size = 1
         env = QuadraticEnvironment(batch_size=batch_size, dimensions=self.dimensions)
+
+        # env = LogisticEnvironment(batch_size=self.batch_size, dimensions=self.dimensions)
         env.reset_state()
 
 
@@ -252,6 +289,7 @@ class Trainer(object):
         diff_arr = []
         diff_x_arr = []
         reward_arr = []
+        value_arr = []
 
         for iter in range(self.seq_length):
             
@@ -264,19 +302,21 @@ class Trainer(object):
             diff_to_optim_val = np.sum(diff_to_optim_val)
             diff_to_optim_x_squared = np.sum(diff_to_optim_x_squared)
 
-            if iter % 1 == 0:
+            if iter % 200 == 0:
                 iter_arr.append(iter)
                 diff_arr.append(diff_to_optim_val)
                 diff_x_arr.append(diff_to_optim_x_squared)
                 reward_arr.append(reward)
+                value_arr.append(env.func_val.sum())
 
-        utils.curve_plot(reward_arr, iter_arr, 'Iterations', 'Reward', 0)
-        utils.curve_plot(diff_arr, iter_arr, 'Iterations', 'Diff', 1)
-        utils.curve_plot(diff_x_arr, iter_arr, 'Iterations', 'Diff_x', 2)
+        utils.curve_plot(reward_arr, iter_arr, 'Iterations', 'Reward', 0, label='rl-agent')
+        utils.curve_plot(diff_arr, iter_arr, 'Iterations', 'Diff', 1, label='rl-agent')
+        utils.curve_plot(diff_x_arr, iter_arr, 'Iterations', 'Diff_x', 2, label='rl-agent')
+        utils.curve_plot(value_arr, iter_arr, 'Iterations', 'Function Value', 3, label='rl-agent')
 
         # train without rl and test
 
-        self.fit_without_rl(env=env, optim_type='adam')
+        self.fit_without_rl(env=env)
 
 
 
@@ -294,7 +334,7 @@ if __name__ == '__main__':
     t = Trainer()
     t.initialize()
     # t.fit()
-    model_path = 'logs/dim_5_seql_15000_episode_100.pth'
+    model_path = 'logs/dim_5_seql_15000_episode_100_quadratic.pth'
     t.test(path=model_path)
 
 

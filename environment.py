@@ -81,13 +81,14 @@ class LogisticEnvironment(object):
         self.mu = np.random.choice([0.1,0.5,1.0,2.0])
         self.X, self.Y = [], []
         for i in range(batch_size):
-            X, Y = make_classification(n_samples=sample_size, n_features=dimensions-1, n_informative=dimensions-11, n_redundant=0, n_repeated=0, n_classes=2, n_clusters_per_class=5, weights=None, flip_y=0.1, class_sep=self.mu)
+            X, Y = make_classification(n_samples=sample_size, n_features=dimensions-1, n_informative=dimensions-1, n_redundant=0, n_repeated=0, n_classes=2, n_clusters_per_class=3, weights=None, flip_y=0.1, class_sep=self.mu)
             X = np.hstack((np.ones((sample_size,1)), X))
             self.X.append(X)
             self.Y.append(Y)
         self.X = np.ascontiguousarray(np.stack(self.X))
         self.Y = np.ascontiguousarray(np.stack(self.Y))
         # Initial Function values and gradients
+        # import pdb;pdb.set_trace()
         logits = np.einsum('ijk,ik -> ij', self.X, self.current_iterate)
         labeled_logits = self.Y*logits
         exp_logits = np.maximum(labeled_logits, 0) + np.log(1 + np.exp(-np.abs(labeled_logits)))
@@ -134,7 +135,7 @@ class LogisticEnvironment(object):
         self.gradient = np.mean((mini_batchY.T*mini_batchX.T/(1+np.exp(-labeled_logits)).T).T, axis=1) + self.lamda*self.current_iterate
         reward = prev_func_val - func_val
         self.func_val = func_val
-        return np.hstack((self.current_iterate, self.gradient, np.clip(np.expand_dims(self.func_val,1), -1e4, 1e4))), reward
+        return np.hstack((self.current_iterate, self.gradient, np.clip(np.expand_dims(self.func_val,1), -1e4, 1e4))), reward, np.array(0), np.array(0), np.array(0)
 
 
 class _MLP(nn.Module):

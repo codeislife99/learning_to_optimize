@@ -5,11 +5,12 @@ import torch
 SAVE_DIR = 'logs/'
 
 plt.ion()
-def curve_plot(plot_arr,episode_arr,xlabel,ylabel,number):
+def curve_plot(plot_arr,episode_arr,xlabel,ylabel,number, label):
     plt.figure(number)
-    plt.plot(episode_arr,plot_arr)
+    plt.plot(episode_arr,plot_arr, label=label)
     plt.ylabel(ylabel)
     plt.xlabel(xlabel)
+    plt.legend()
     plt.savefig(xlabel+'_'+ylabel+'_'+'.png')
     plt.pause(0.05)
 
