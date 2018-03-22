@@ -23,7 +23,7 @@ class Trainer(object):
         self.batch_size = 1 # 256
         self.dimensions = 12 # 100
         self.hidden_size = 10 
-        self.num_episodes = 500
+        self.num_episodes = 100
         self.seq_length = 15000 # 100
 
         # set of learning rates from which agent chooses from
@@ -170,15 +170,16 @@ class Trainer(object):
         utils.save_agent(agent=self.agent, dimension=self.dimensions, episode=episode, sequence_length=self.seq_length)
     
 
-    def fit_without_rl(self, optim_type='adam'):
+
+    def fit_without_rl(self, env, optim_type='adam'):
         batch_size = 1
         param = Variable(torch.zeros(batch_size, self.dimensions), requires_grad=True)
-        env = SimpleNeuralNetwork(batch_size=self.batch_size, dimensions=self.dimensions)
         if optim_type == 'sgd':
             optimizer = optim.SGD([{'params': param}], lr=0.1)# , momentum=0.9, weight_decay=0.9)
         elif optim_type == 'adam':
-            optimizer = optim.Adam([{'params': param}], lr=0.01)
+            optimizer = optim.Adam([{'params': param}], lr=0.1)
 
+        env.reset_state()
         iter_arr = []
         reward_arr = []
         diff_to_optim_val_arr = []
@@ -187,6 +188,8 @@ class Trainer(object):
 
         for iter in range(self.seq_length):
             state, reward, diff_to_optim_val, diff_to_optim_x_squared,_ = env(step_size=0.)
+            if len(state.shape) == 1:
+                state = state.reshape(1, -1)
             current_iterate, current_gradient = state[:, :self.dimensions], state[:, self.dimensions: 2 * self.dimensions]
             
             optimizer.zero_grad()
@@ -194,27 +197,71 @@ class Trainer(object):
             param.sum().backward()
             param.grad.data.copy_(torch.from_numpy(current_gradient))
             optimizer.step()
-            env.current_iterate += param.data.numpy()
+            env.current_iterate += param.data
 
-            iter_arr.append(iter)
             reward = reward.sum()
-            reward_arr.append(reward)
-            diff_to_optim_val_arr.append(diff_to_optim_val)
-            diff_to_optim_x_squared_arr.append(diff_to_optim_x_squared)
-            val = env.func_val.sum()
-            function_val_arr.append(val)
-            # utils.curve_plot(reward_arr,iter_arr,'iter','Reward',1)
-            # utils.curve_plot(diff_to_optim_val_arr,iter_arr,'iter','diff',2)
-            # utils.curve_plot(diff_to_optim_x_squared_arr,iter_arr,'iter','diff_x',3)
+            val = sum(env.func_val)
+
+            if iter % 1 == 0:
+                iter_arr.append(iter)
+                reward_arr.append(reward)
+                diff_to_optim_val_arr.append(diff_to_optim_val)
+                diff_to_optim_x_squared_arr.append(diff_to_optim_x_squared)
+                function_val_arr.append(val)
+        utils.curve_plot(reward_arr,iter_arr,'iter','Adam Reward',0)
+        utils.curve_plot(diff_to_optim_val_arr,iter_arr,'iter','Adam diff',1)
+        utils.curve_plot(diff_to_optim_x_squared_arr,iter_arr,'iter','Adam diff_x',2)
             # utils.curve_plot(function_val_arr,iter_arr,'iter','value',4)
 
-            print('Training -- iter [%d], Reward: %.4f, diff: %.4f,Diff_x: %.4f, Val: %.4f' % (iter+1, reward, diff_to_optim_val, diff_to_optim_x_squared, val))
-            
-
+            # print('Training -- iter [%d], Reward: %.4f, diff: %.4f,Diff_x: %.4f, Val: %.4f' % (iter+1, reward, diff_to_optim_val, diff_to_optim_x_squared, val))
 
 
     def test(self, path):
+        """
+        path: model path to rl model
+        """
+        print('TESTING')
         utils.load(agent=self.agent, path=path)
+        batch_size = 1
+        env = SimpleNeuralNetwork(batch_size=batch_size, dimensions=self.dimensions)
+        env.reset_state()
+
+
+        # test rl agent
+        current_state = env.get_state()
+        self.memory[0].data.zero_()
+        self.memory[1].data.zero_()
+
+        iter_arr = []
+        diff_arr = []
+        diff_x_arr = []
+        reward_arr = []
+
+        for iter in range(self.seq_length):
+            
+            self.state.data.copy_(torch.from_numpy(current_state))
+            next_action, self.memory = self.agent.fp(current_state=self.state, memory=self.memory)
+            next_action = next_action.data.numpy()
+            current_state, reward, diff_to_optim_val, diff_to_optim_x_squared,_= env(self.step_size_map[next_action])
+            
+            reward = np.sum(reward)
+            diff_to_optim_val = np.sum(diff_to_optim_val)
+            diff_to_optim_x_squared = np.sum(diff_to_optim_x_squared)
+
+            if iter % 1 == 0:
+                iter_arr.append(iter)
+                diff_arr.append(diff_to_optim_val)
+                diff_x_arr.append(diff_to_optim_x_squared)
+                reward_arr.append(reward)
+
+        utils.curve_plot(reward_arr, iter_arr, 'Iterations', 'Reward', 0)
+        utils.curve_plot(diff_arr, iter_arr, 'Iterations', 'Diff', 1)
+        utils.curve_plot(diff_x_arr, iter_arr, 'Iterations', 'Diff_x', 2)
+
+        # train without rl and test
+
+        self.fit_without_rl(env=env, optim_type='adam')
+
 
             
             
@@ -227,8 +274,8 @@ class Trainer(object):
 if __name__ == '__main__':
     t = Trainer()
     t.initialize()
-    t.fit()
-    model_path = 'logs/dim_5_seql_15000_episode_2.pth'
+    # t.fit()
+    model_path = 'logs/dim_12_seql_15000_episode_100.pth'
     t.test(path=model_path)
 
     # t.fit_without_rl()

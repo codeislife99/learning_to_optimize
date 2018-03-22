@@ -24,7 +24,7 @@ def save_agent(agent, sequence_length, episode, dimension):
 
 def load(agent, path):
     load_dict = torch.load(path)
-    agent.policy_step.load_dict(load_dict["policy_step"])
-    agent.projection.load_dict(load_dict["projection"])
+    agent.policy_step.load_state_dict(load_dict["policy_step"])
+    agent.projection.load_state_dict(load_dict["projection"])
     
 

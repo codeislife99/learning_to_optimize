@@ -228,7 +228,10 @@ class SimpleNeuralNetwork(object):
         for param in self.model.parameters():
             if param.grad is None:
                 continue
-            param.data.add_(-np.asscalar(step_size), param.grad.data)
+            if isinstance(step_size, float):
+                param.data.add_(-step_size, param.grad.data)
+            else:
+                param.data.add_(-np.asscalar(step_size), param.grad.data)
         func_val = loss.data[0]
         self.current_iterate = self.model.get_weights()
         self.gradient = self.model.get_grad()
