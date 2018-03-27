@@ -49,7 +49,7 @@ class Trainer(object):
         params = list(self.agent.policy_step.parameters()) + list(self.agent.projection.parameters())
         self.optimizer = optim.Adam(params, lr= args.lr)#, momentum=0.9)
         
-
+    '------------------------------------------------------------------Initialization-----------------------------------------------------'
     def initialize(self):
         self.state = Variable(torch.FloatTensor(self.batch_size, self.state_space_size))
         self.memory = (
@@ -60,6 +60,7 @@ class Trainer(object):
             Variable(torch.zeros(self.batch_size, self.hidden_size)), # hidden state
             Variable(torch.zeros(self.batch_size, self.hidden_size)), # cell state
         )
+    '------------------------------------------------------------------Update RL Agent----------------------------------------------------'
 
     def train_agent(self, state_seq, action_seq, reward_seq):
         # reward_seq = (reward_seq - reward_seq.mean()) / (reward_seq.std() + np.finfo(np.float32).eps)
@@ -70,6 +71,7 @@ class Trainer(object):
         self.optimizer.step()
         return reinforce_loss.data.numpy()
 
+    '------------------------------------------------------------------RL Agent Main-----------------------------------------------------'
 
     def fit(self):
         """
@@ -188,6 +190,8 @@ class Trainer(object):
             utils.curve_plot(acc_reward_arr,episode_arr,'Episode','Reward',3)
             utils.curve_plot(diff_x_arr,episode_arr,'Episode','Diff X',4)
 
+    '------------------------------------------------------------------Classical Optimizers------------------------------------------------'
+
     def fit_without_rl(self, env):
         batch_size = 1
         param = Variable(torch.zeros(batch_size, self.dimensions), requires_grad=True)            
@@ -270,6 +274,7 @@ class Trainer(object):
             utils.curve_plot(function_val_arr, iter_arr, 'Iterations', 'Function Value', 3, label='sgd')
 
 
+    '------------------------------------------------------------------Test RL Agent ------------------------------------------------------'
 
     def test(self, path):
         """
@@ -325,13 +330,14 @@ class Trainer(object):
         self.fit_without_rl(env=env)
 
 
+'------------------------------------------------------------------Parse Arguments---------------------------------------------------------'
 
 parser = argparse.ArgumentParser(description='Meta Learning Project')
 parser.add_argument('-b', '--batch-size',     default=1,           type=int,           help='mini-batch size (default: 1)')
 parser.add_argument('-d', '--dimensions',     default=5,           type=int,           help='No of dimensions (default: 5)')
-parser.add_argument('--hidden_size',    default=10,          type=int,           help='Hidden Size (default: 10)')
-parser.add_argument('-e', '--num_episodes',         default=100,         type=int,           help='No of episodes (default: 100)')
-parser.add_argument('-s', '--seq_length',        default=15000,       type=int,           help='Sequence Length (default: 15000)')
+parser.add_argument('--hidden_size',          default=10,          type=int,           help='Hidden Size (default: 10)')
+parser.add_argument('-e', '--num_episodes',   default=100,         type=int,           help='No of episodes (default: 100)')
+parser.add_argument('-s', '--seq_length',     default=15000,       type=int,           help='Sequence Length (default: 15000)')
 parser.add_argument('--lr','--learning_rate', default=0.1,         type=float,         help='initial learning rate')
 parser.add_argument('--momentum',             default=0.9,         type=float,         help='momentum')
 parser.add_argument('--weight_decay', '--wd', default=1e-4,        type=float,         help='weight decay (default: 1e-4)')
@@ -339,7 +345,7 @@ parser.add_argument('--print_freq',           default=10,          type=int,    
 parser.add_argument('--resume',               default='',          type=str,           help='path to latest checkpoint (default: none)')
 parser.add_argument('--test',                 dest='evaluate',     action='store_true',help='Test Mode')
 parser.add_argument('-p',  '--plot',          dest='evaluate',     action='store_true',help='Plot Mode')
-parser.add_argument('--env',               default='Quadratic',    type=str,           help='Env Type')
+parser.add_argument('--env',                  default='Quadratic',    type=str,        help='Env Type')
 
 
 
