@@ -16,15 +16,16 @@ import matplotlib.pyplot as plt
 import gc
 from pylab import *
 import utils
+import argparse
 
 
 class Trainer(object):
     def __init__(self):
-        self.batch_size = 1 # 256
-        self.dimensions = 5 # 100
-        self.hidden_size = 10 
-        self.num_episodes = 100
-        self.seq_length = 15000
+        self.batch_size = args.batch_size # 1
+        self.dimensions = args.dimensions # 5
+        self.hidden_size = args.hidden_size #10 
+        self.num_episodes = args.num_episodes # 100
+        self.seq_length = args.seq_length # 15000
 
         # set of learning rates from which agent chooses from
         # self.step_size_map = np.array([10**i for i in range(-10, -1)])        
@@ -46,7 +47,7 @@ class Trainer(object):
 
         # self.optimizer = optim.SGD([{'params': self.agent.policy_step.parameters()}, {'params': self.agent.projection.parameters()}], lr=10 , momentum=0.9)
         params = list(self.agent.policy_step.parameters()) + list(self.agent.projection.parameters())
-        self.optimizer = optim.Adam(params, lr=0.01 )#, momentum=0.9)
+        self.optimizer = optim.Adam(params, lr= args.lr)#, momentum=0.9)
         
 
     def initialize(self):
@@ -139,9 +140,11 @@ class Trainer(object):
                 print("Out of Hand")
                 raise
                 continue
+
             state_history = np.stack(state_history)
             action_history = np.stack(action_history)
             reward_history = np.stack(reward_history)
+
             current_loss = self.train_agent(state_history, action_history, reward_history)
             diff_total = diff_total.sum() /(self.seq_length)
             total_reward = total_reward.sum()
@@ -179,11 +182,11 @@ class Trainer(object):
                 utils.save_agent(agent=self.agent, dimension=self.dimensions, episode=episode, sequence_length=self.seq_length)
         
 
-        
-        utils.curve_plot(diff_arr,episode_arr,'Episode','Diff Value',1)
-        utils.curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
-        utils.curve_plot(acc_reward_arr,episode_arr,'Episode','Reward',3)
-        utils.curve_plot(diff_x_arr,episode_arr,'Episode','Diff X',4)
+        if args.plot:
+            utils.curve_plot(diff_arr,episode_arr,'Episode','Diff Value',1)
+            utils.curve_plot(loss_arr,episode_arr,'Episode','Loss',2)
+            utils.curve_plot(acc_reward_arr,episode_arr,'Episode','Reward',3)
+            utils.curve_plot(diff_x_arr,episode_arr,'Episode','Diff X',4)
 
     def fit_without_rl(self, env):
         batch_size = 1
@@ -248,7 +251,6 @@ class Trainer(object):
                 # print(env.current_iterate)
                 env.current_iterate += param.data.numpy()
             except: 
-                print("YOLO2")
                 pdb.set_trace()
 
             reward = reward.sum()
@@ -260,10 +262,12 @@ class Trainer(object):
                 diff_to_optim_val_arr.append(diff_to_optim_val)
                 diff_to_optim_x_squared_arr.append(diff_to_optim_x_squared)
                 function_val_arr.append(val)
-        utils.curve_plot(reward_arr,iter_arr,'iter','Reward',0, label='sgd')
-        utils.curve_plot(diff_to_optim_val_arr,iter_arr,'iter','Diff to optimal value',1, label='sgd')
-        utils.curve_plot(diff_to_optim_x_squared_arr,iter_arr,'iter','Distance to optimal point',2, label='sgd')
-        utils.curve_plot(function_val_arr, iter_arr, 'Iterations', 'Function Value', 3, label='sgd')
+
+        if args.plot:
+            utils.curve_plot(reward_arr,iter_arr,'iter','Reward',0, label='sgd')
+            utils.curve_plot(diff_to_optim_val_arr,iter_arr,'iter','Diff to optimal value',1, label='sgd')
+            utils.curve_plot(diff_to_optim_x_squared_arr,iter_arr,'iter','Distance to optimal point',2, label='sgd')
+            utils.curve_plot(function_val_arr, iter_arr, 'Iterations', 'Function Value', 3, label='sgd')
 
 
 
@@ -273,10 +277,12 @@ class Trainer(object):
         """
         print('TESTING')
         utils.load_agent(agent=self.agent, path=path)
-        batch_size = 1
-        env = QuadraticEnvironment(batch_size=batch_size, dimensions=self.dimensions)
 
-        # env = LogisticEnvironment(batch_size=self.batch_size, dimensions=self.dimensions)
+        if args.env == 'Quadratic':
+            env = QuadraticEnvironment(batch_size=self.batch_size, dimensions=self.dimensions)
+        elif args.env == 'Logistic':
+            env = LogisticEnvironment(batch_size=self.batch_size, dimensions=self.dimensions)
+
         env.reset_state()
 
 
@@ -320,22 +326,32 @@ class Trainer(object):
 
 
 
-
-
-            
-            
-
-
-
+parser = argparse.ArgumentParser(description='Meta Learning Project')
+parser.add_argument('-b', '--batch-size',     default=1,           type=int,           help='mini-batch size (default: 1)')
+parser.add_argument('-d', '--dimensions',     default=5,           type=int,           help='No of dimensions (default: 5)')
+parser.add_argument('--hidden_size',    default=10,          type=int,           help='Hidden Size (default: 10)')
+parser.add_argument('-e', '--num_episodes',         default=100,         type=int,           help='No of episodes (default: 100)')
+parser.add_argument('-s', '--seq_length',        default=15000,       type=int,           help='Sequence Length (default: 15000)')
+parser.add_argument('--lr','--learning_rate', default=0.1,         type=float,         help='initial learning rate')
+parser.add_argument('--momentum',             default=0.9,         type=float,         help='momentum')
+parser.add_argument('--weight_decay', '--wd', default=1e-4,        type=float,         help='weight decay (default: 1e-4)')
+parser.add_argument('--print_freq',           default=10,          type=int,           help='print frequency (default: 10)')
+parser.add_argument('--resume',               default='',          type=str,           help='path to latest checkpoint (default: none)')
+parser.add_argument('--test',                 dest='evaluate',     action='store_true',help='Test Mode')
+parser.add_argument('-p',  '--plot',          dest='evaluate',     action='store_true',help='Plot Mode')
+parser.add_argument('--env',               default='Quadratic',    type=str,           help='Env Type')
 
 
 
 if __name__ == '__main__':
+    args = parser.parse_args()
     t = Trainer()
     t.initialize()
-    # t.fit()
-    model_path = 'logs/dim_5_seql_15000_episode_100_quadratic.pth'
-    t.test(path=model_path)
+    t.fit()
+    # model_path = 'logs/dim_5_seql_15000_episode_100_quadratic.pth'
+    if args.test:
+        if os.path.isfile(args.resume):
+            t.test(path=args.resume)
 
 
 

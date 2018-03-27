@@ -20,7 +20,7 @@ def save_agent(agent, sequence_length, episode, dimension):
         "policy_step": agent.policy_step.state_dict(),
         "projection": agent.projection.state_dict(),
     }
-    save_path = f'{SAVE_DIR}/dim_{dimension}_seql_{sequence_length}_episode_{episode}.pth' 
+    save_path = '{SAVE_DIR}/dim_{dimension}_seql_{sequence_length}_episode_{episode}.pth' 
     torch.save(saved_dict, save_path)
 
 def load_agent(agent, path):
