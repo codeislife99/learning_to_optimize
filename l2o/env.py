@@ -49,11 +49,10 @@ class QuadraticEnvironment(nn.Module):
 
     def forward(self, x):
         # x: [batch_size, dimension]
-
         # H: [batch_size, dimension, dimension]
-        H = Variable(self.H, requires_grad=False)
+        H = self.H
         # g: [batch_size, dimension, 1]
-        g = Variable(self.g, requires_grad=False)
+        g = self.g
         # x: [batch_size, dimension, 1]
         x = x.unsqueeze(dim=-1)
         # 0.5 * x^T * H * x + g^T * x
