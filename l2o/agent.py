@@ -43,7 +43,7 @@ class Agent(nn.Module):
             loss += current_reward * F.cross_entropy(logits, current_action)
         return loss
 
-    def forward(self, agent_state, current_memory):
+    def forward(self, agent_state, current_memory): # pylint: disable=W0221
         action_logits, updated_memory = self.step(agent_state, current_memory)
         action_prob = F.softmax(action_logits, dim=-1)
         next_action = torch.distributions.Categorical(action_prob).sample()

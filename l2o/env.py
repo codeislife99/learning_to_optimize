@@ -5,7 +5,6 @@ import numpy as np
 from numpy.linalg import inv
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 from scipy.linalg import qr
 
 
@@ -47,7 +46,7 @@ class QuadraticEnvironment(nn.Module):
         B = np.dot(Q*v, Q.T)
         return B
 
-    def forward(self, x):
+    def forward(self, x): # pylint: disable=W0221
         # x: [batch_size, dimension]
         # H: [batch_size, dimension, dimension]
         H = self.H
