@@ -12,7 +12,7 @@ def _to_scalar(tensor):
 
 
 def _convert_to_var(tensor):
-    return Variable(tensor, requires_grad=False, volatile=False)
+    return Variable(tensor.cuda(), requires_grad=False, volatile=False)
 
 
 def _optim_step(optim, _rewards, _log_probs, gamma):
@@ -28,7 +28,7 @@ def _optim_step(optim, _rewards, _log_probs, gamma):
 
     def _get_loss(rewards, log_probs):
         rewards = rewards.astype("float32").reshape(-1)
-        rewards = Variable(torch.from_numpy(rewards), requires_grad=False)
+        rewards = Variable(torch.from_numpy(rewards).cuda(), requires_grad=False)
         log_probs = torch.cat(log_probs)
         policy_loss = (-rewards * log_probs).sum()
         loss = policy_loss
@@ -71,13 +71,14 @@ class Agent(nn.Module):
         rewards, log_probs = [], []
         state = env.reset()
         for _ in range(n_steps):
-            state = Variable(state.view(self.batch_size, -1), requires_grad=False, volatile=False)
+            state = Variable(state.view(self.batch_size, -1).cuda(), requires_grad=False, volatile=False)
             memory = self.policy_step(state, memory)
             action_probs = self.action_head(memory[0])
             action_cats = torch.distributions.Categorical(action_probs)
             action = action_cats.sample()
             log_prob = action_cats.log_prob(action)
-            state, reward, _, _ = env.step(action.data)
+            # import pdb; pdb.set_trace()
+            state, reward, _, _ = env.step(action.data.cpu())
             rewards.append(reward)
             log_probs.append(log_prob)
         _optim_step(optim, rewards, log_probs, gamma=0.99)
@@ -92,7 +93,7 @@ class Agent(nn.Module):
         func_vals, rewards = [], []
         state = env.reset()
         for _ in range(n_steps):
-            state = Variable(state, requires_grad=False, volatile=False)
+            state = Variable(state.cuda(), requires_grad=False, volatile=False)
             memory = self.policy_step(state, memory)
             action_probs = self.action_head(memory[0])
             assert len(action_probs) == 2

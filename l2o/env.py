@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from scipy.linalg import qr
+import pdb
 
 
 LR = torch.FloatTensor([1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 0.1, 1])
@@ -26,7 +27,7 @@ class QuadraticEnvironment(nn.Module):
         self.batch_size = batch_size
         self.dimension = dimension
         # H: [batch_size, dimension, dimension]
-        H = np.asarray([self._generate_psd2(dimension) for _ in range(batch_size)])
+        H = np.asarray([self._generate_psd(dimension) for _ in range(batch_size)])
         self.H = _convert_to_param(H)
         # g: [batch_size, dimension, 1]
         g = np.asarray([np.random.rand(dimension) for _ in range(batch_size)])
@@ -40,7 +41,7 @@ class QuadraticEnvironment(nn.Module):
         self.func_val = None
 
     @staticmethod
-    def generate_psd(dimension):
+    def _generate_psd(dimension):
         A = np.random.rand(dimension, dimension)
         B = np.dot(A, A.T) / (dimension * 10) + 0.1 * np.eye(dimension, dimension)
         return B
@@ -62,8 +63,8 @@ class QuadraticEnvironment(nn.Module):
         self.x = nn.Parameter(x, requires_grad=True)
         self.all_params = list(p for p in self.parameters() if p.requires_grad)
         self.func_val = self._eval()
-        print("# of weights:", len(self.all_params))
-        print("# of parameters:", sum(x.numel() for x in self.all_params))
+        #print("# of weights:", len(self.all_params))
+        #print("# of parameters:", sum(x.numel() for x in self.all_params))
         return self._get_state()
 
     def step(self, step_size): # pylint: disable=W0221

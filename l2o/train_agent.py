@@ -15,7 +15,7 @@ def main():
 
     action_size = len(LR)
     state_size = 2 * args.dimension + 1
-    agent = Agent(batch_size=args.batch_size, state_size=state_size, action_size=action_size, hidden_size=args.hidden_size)
+    agent = Agent(batch_size=args.batch_size, state_size=state_size, action_size=action_size, hidden_size=args.hidden_size).cuda()
 
     optimizer = optim.Adam(agent.all_params, lr=args.lr, eps=1e-5)
 
@@ -28,7 +28,7 @@ def main():
         distance_func_val = (current_func_val - env.f_opt).mean()
 
         if episode % 100 == 0:
-            print(f"episode {episode}, mean reward {mean_reward:.4f} distance_x {distance_x:.4f} distance_func_val {distance_func_val:.4f}")
+            print(f"episode {episode}, mean reward {mean_reward:.4f} distance_x {distance_x:.4f} distance_func_val {distance_func_val:.4f} opt_func {env.f_opt.mean():.4f}")
 
 
 if __name__ == "__main__":
