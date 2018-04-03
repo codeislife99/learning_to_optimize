@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import numpy as np
-from numpy.linalg import inv
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
+import numpy as np
+from numpy.linalg import inv
 from scipy.linalg import qr
-import pdb
+from torch.autograd import Variable
 
 
 LR = torch.FloatTensor([1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 0.1, 1])
@@ -60,6 +59,8 @@ class QuadraticEnvironment(nn.Module):
         # x: [batch_size, dimension, 1]
         x = np.random.normal(0.0, 1.0, size=(self.batch_size, self.dimension, 1))
         x = torch.from_numpy(x.astype("float32"))
+        if self.H.is_cuda:
+            x = x.cuda()
         self.x = nn.Parameter(x, requires_grad=True)
         self.all_params = list(p for p in self.parameters() if p.requires_grad)
         self.func_val = self._eval()
@@ -68,6 +69,9 @@ class QuadraticEnvironment(nn.Module):
         return self._get_state()
 
     def step(self, step_size): # pylint: disable=W0221
+        global LR
+        if self.H.is_cuda:
+            LR = LR.cuda()
         step_size = LR.gather(0, step_size)
         step_size = step_size.unsqueeze(dim=-1).unsqueeze(dim=-1)
         self.x.data.add_(-step_size * self.x.grad.data)

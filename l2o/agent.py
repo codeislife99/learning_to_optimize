@@ -15,29 +15,11 @@ def _convert_to_var(tensor):
     return Variable(tensor.cuda(), requires_grad=False, volatile=False)
 
 
-def _optim_step(optim, _rewards, _log_probs, gamma):
-
-    def _get_rewards(rewards):
-        decayed_r = 0.0
-        decayed_rewards = []
-        for r in rewards[::-1]:
-            decayed_r = r.cpu().numpy() + gamma * decayed_r
-            decayed_rewards.append(decayed_r)
-        decayed_rewards = list(reversed(decayed_rewards))
-        return np.array(decayed_rewards, dtype="float32")
-
-    def _get_loss(rewards, log_probs):
-        rewards = rewards.astype("float32").reshape(-1)
-        rewards = Variable(torch.from_numpy(rewards).cuda(), requires_grad=False)
-        log_probs = torch.cat(log_probs)
-        policy_loss = (-rewards * log_probs).sum()
-        loss = policy_loss
-        return loss
-
-    rewards = _get_rewards(_rewards)
-    loss = _get_loss(rewards, _log_probs)
+def _optim_step(optim, rewards, log_probs, gamma):
+    rewards = _convert_to_var(torch.stack(rewards, dim=0))
+    log_probs = torch.stack(log_probs, dim=0)
+    loss = (rewards * -log_probs).sum()
     pyloss = loss.data[0]
-
     optim.zero_grad()
     loss.backward()
     optim.step()
@@ -72,13 +54,16 @@ class Agent(nn.Module):
         state = env.reset()
         for _ in range(n_steps):
             state = Variable(state.view(self.batch_size, -1).cuda(), requires_grad=False, volatile=False)
+            # Get action distribution
             memory = self.policy_step(state, memory)
             action_probs = self.action_head(memory[0])
+            # Sample an action
             action_cats = torch.distributions.Categorical(action_probs)
             action = action_cats.sample()
             log_prob = action_cats.log_prob(action)
-            # import pdb; pdb.set_trace()
-            state, reward, _, _ = env.step(action.data.cpu())
+            # Do one step
+            state, reward, _, _ = env.step(action.data)
+            # Book keeping
             rewards.append(reward)
             log_probs.append(log_prob)
         _optim_step(optim, rewards, log_probs, gamma=0.99)

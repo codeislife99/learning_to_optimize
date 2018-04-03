@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from l2o.args import args
-from l2o.env import QuadraticEnvironment, LR
-from l2o.agent import Agent
-
 import torch.optim as optim
+
+from l2o.agent import Agent
+from l2o.args import args
+from l2o.env import LR, QuadraticEnvironment
+
 
 def main():
     if args.env == 'quadratic':
@@ -16,6 +17,8 @@ def main():
     action_size = len(LR)
     state_size = 2 * args.dimension + 1
     agent = Agent(batch_size=args.batch_size, state_size=state_size, action_size=action_size, hidden_size=args.hidden_size).cuda()
+    env.cuda()
+    agent.cuda()
 
     optimizer = optim.Adam(agent.all_params, lr=args.lr, eps=1e-5)
 
