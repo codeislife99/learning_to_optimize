@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import torch
-import torch.nn as nn
 import numpy as np
 from numpy.linalg import inv
 from scipy.linalg import qr
+import torch
+import torch.nn as nn
 from torch.autograd import Variable
 
 
@@ -95,7 +95,7 @@ class QuadraticEnvironment(nn.Module):
                + (g * x).squeeze(dim=-1).sum(dim=-1)
         assert len(result.shape) == 1
         self._zero_grad()
-        result.mean().backward()
+        result.sum().backward()
         return result.data
 
     def _zero_grad(self):
@@ -120,3 +120,22 @@ class QuadraticEnvironment(nn.Module):
         result = forward + backward + [self.func_val.view(self.batch_size, -1)]
         result = torch.cat(result, dim=1)
         return result
+
+
+def test():
+    import random, scipy
+    random.seed(42)
+    np.random.seed(42)
+    scipy.random.seed(42)
+    torch.manual_seed(42)
+    torch.cuda.manual_seed(42)
+
+    env = QuadraticEnvironment(batch_size=256, dimension=100)
+    state = env.reset()
+    import ipdb; ipdb.set_trace()
+    result = env.step(torch.LongTensor([5]))
+    print("Done")
+
+
+if __name__ == "__main__":
+    test()

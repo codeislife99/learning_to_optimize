@@ -67,7 +67,7 @@ class Agent(nn.Module):
             rewards.append(reward)
             log_probs.append(log_prob)
         _optim_step(optim, rewards, log_probs, gamma=0.99)
-        return sum(rewards).mean()
+        return torch.stack(rewards).sum(dim=1).mean()
 
     def test_episode(self, env, n_steps):
         new_tensor = self.action_head[0].weight.data.new
