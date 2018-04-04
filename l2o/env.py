@@ -28,7 +28,7 @@ class QuadraticEnvironment(nn.Module):
         self.batch_size = batch_size
         self.dimension = dimension
         # H: [batch_size, dimension, dimension]
-        H = np.asarray([self._generate_psd(dimension) for _ in range(batch_size)])
+        H = np.asarray([self._generate_psd2(dimension) for _ in range(batch_size)])
         self.H = _convert_to_param(H)
         # g: [batch_size, dimension, 1]
         g = np.asarray([np.random.rand(dimension) for _ in range(batch_size)])

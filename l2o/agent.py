@@ -16,8 +16,20 @@ def _convert_to_var(tensor):
 
 
 def _optim_step(optim, rewards, log_probs, gamma):
+
+    def _get_decayed_rewards(rewards):
+        decayed_r = 0.0
+        decayed_rewards = []
+        for r in rewards[::-1]:
+            decayed_r = r + gamma * decayed_r
+            decayed_rewards.append(decayed_r)
+        return list(reversed(decayed_rewards))
+
+    rewards = _get_decayed_rewards(rewards)
     rewards = _convert_to_var(torch.stack(rewards, dim=0))
+    rewards = (rewards - rewards.mean(dim=0, keepdim=True)) / (rewards.std(dim=0, keepdim=True) + 1e-6)
     log_probs = torch.stack(log_probs, dim=0)
+    assert rewards.shape == log_probs.shape
     loss = (rewards * -log_probs).sum()
     pyloss = loss.data[0]
     optim.zero_grad()
