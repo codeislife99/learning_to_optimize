@@ -10,6 +10,8 @@ from torch.autograd import Variable
 
 
 LR = torch.FloatTensor([1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 0.1, 1])
+VALUE_CLIP = 1e4
+NORM_CLIP = 10.0
 
 
 def _convert_to_param(ndarray):
@@ -76,7 +78,7 @@ class QuadraticEnvironment(nn.Module):
         step_size = step_size.unsqueeze(dim=-1).unsqueeze(dim=-1)
         self.x.data.add_(-step_size * self.x.grad.data)
         next_func_val = self._eval()
-        improvement = self.func_val - next_func_val
+        improvement = (self.func_val - next_func_val).clamp_(-VALUE_CLIP, VALUE_CLIP)
         self.func_val = next_func_val
         return self._get_state(), improvement, False, None
 
@@ -91,6 +93,9 @@ class QuadraticEnvironment(nn.Module):
         # x: [batch_size, dimension, 1]
         x = self.x
         # 0.5 * x^T * H * x + g^T * x
+        for x in self.all_params:
+            x.data.clamp_(-VALUE_CLIP, VALUE_CLIP)
+        torch.nn.utils.clip_grad_norm(self.all_params, NORM_CLIP, norm_type=2)
         result = torch.bmm(torch.bmm(x.transpose(1, 2), H), x).squeeze(dim=-1).squeeze(dim=-1) * 0.5 \
                + (g * x).squeeze(dim=-1).sum(dim=-1)
         assert len(result.shape) == 1
@@ -132,7 +137,6 @@ def test():
 
     env = QuadraticEnvironment(batch_size=256, dimension=100)
     state = env.reset()
-    import ipdb; ipdb.set_trace()
     result = env.step(torch.LongTensor([5]))
     print("Done")
 

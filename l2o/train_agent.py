@@ -42,7 +42,7 @@ def main():
         distance_func_val = (current_func_val - env.f_opt).mean()
 
         if episode % 1 == 0:
-            print(f"episode {episode}, mean reward {mean_reward:.4f} distance_x {distance_x:.4f} distance_func_val {distance_func_val:.4f} opt_func {env.f_opt.mean():.4f}")
+            print(f"episode {episode}, mean reward {mean_reward:.4f} distance_x {distance_x:.4f} mean_func {current_func_val.mean():.4f} opt_func {env.f_opt.mean():.4f}")
 
 
 if __name__ == "__main__":
