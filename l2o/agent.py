@@ -23,37 +23,24 @@ def _convert_to_var(tensor):
     return Variable(tensor.cuda(), requires_grad=False, volatile=False)
 
 
-def _optim_step(optim, _rewards, _log_probs, gamma):
-    """
-    _rewards : list of batched rewards, len(_rewards) == episode length
-    """
-
-    def _get_rewards(rewards):
+def _optim_step(optim, rewards, log_probs, gamma):
+    
+    def _get_decayed_rewards(rewards):
         decayed_r = 0.0
         decayed_rewards = []
         for r in rewards[::-1]:
-            decayed_r = r.cpu().numpy() + gamma * decayed_r
+            decayed_r = r + gamma * decayed_r
             decayed_rewards.append(decayed_r)
-        decayed_rewards = list(reversed(decayed_rewards))
-        return np.array(decayed_rewards, dtype="float32")
+        return list(reversed(decayed_rewards))
 
-    def _get_loss(rewards, log_probs):
-        """
-        rewards: [episode length, batch size]
-        logs_probs: list of size episode length, each element has shape (batch size, )
-        """
-        # TODO: we should first average the loss for each batch and sum over all batches, instead of linearization
-        rewards = rewards.astype("float32").reshape(-1) # vector
-        rewards = Variable(torch.from_numpy(rewards).cuda(), requires_grad=False)
-        log_probs = torch.cat(log_probs) # vector
-        policy_loss = (-rewards * log_probs).sum()
-        loss = policy_loss
-        return loss
 
-    rewards = _get_rewards(_rewards)
-    loss = _get_loss(rewards, _log_probs)
-    pyloss = loss.data[0] # convert from 1x1 to scalar
-
+    rewards = _get_decayed_rewards(rewards)
+    rewards = _convert_to_var(torch.stack(rewards, dim=0))
+    rewards = (rewards - rewards.mean(dim=0, keepdim=True)) / (rewards.std(dim=0, keepdim=True) + 1e-6)
+    log_probs = torch.stack(log_probs, dim=0)
+    assert rewards.shape == log_probs.shape
+    loss = (rewards * -log_probs).sum()
+    pyloss = loss.data[0]
     optim.zero_grad()
     loss.backward()
     optim.step()
@@ -88,16 +75,20 @@ class Agent(nn.Module):
         state = env.reset()
         for _ in range(n_steps):
             state = Variable(state.view(self.batch_size, -1).cuda(), requires_grad=False, volatile=False)
+            # Get action distribution
             memory = self.policy_step(state, memory)
             action_probs = self.action_head(memory[0])
+            # Sample an action
             action_cats = torch.distributions.Categorical(action_probs)
             action = action_cats.sample()
             log_prob = action_cats.log_prob(action)
-            state, reward, _, _ = env.step(action.data.cpu())
+            # Do one step
+            state, reward, _, _ = env.step(action.data)
+            # Book keeping
             rewards.append(reward)
             log_probs.append(log_prob)
         _optim_step(optim, rewards, log_probs, gamma=0.99)
-        return sum(rewards).mean()
+        return torch.stack(rewards).sum(dim=1).mean()
 
     def test_episode(self, env, n_steps, batch_size=1):
         """
@@ -115,7 +106,7 @@ class Agent(nn.Module):
             state = Variable(state.cuda(), requires_grad=False, volatile=False)
             memory = self.policy_step(state, memory)
             action_probs = self.action_head(memory[0])
-            assert len(action_probs) == 2
+
             _, action = action_probs.max(dim=-1)
             action = action.data
             state, reward, _, _ = env.step(action)
@@ -124,7 +115,7 @@ class Agent(nn.Module):
         return func_vals, rewards
 
     def load(self, path):
-        self.load_state_dict(torch.load(path, map_location="cpu"))
+        self.load_state_dict(torch.load(path)) #, map_location="cpu"))
 
     def save(self, path):
         torch.save(self.state_dict(), path)

@@ -3,14 +3,15 @@
 
 import numpy as np
 from numpy.linalg import inv
+from scipy.linalg import qr
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-from scipy.linalg import qr
-import pdb
 
 
 LR = torch.FloatTensor([1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 0.1, 1])
+VALUE_CLIP = 1e4
+NORM_CLIP = 10.0
 
 
 def _convert_to_param(ndarray):
@@ -66,6 +67,8 @@ class QuadraticEnvironment(nn.Module):
         # x: [batch_size, dimension, 1]
         x = np.random.normal(0.0, 1.0, size=(self.batch_size, self.dimension, 1))
         x = torch.from_numpy(x.astype("float32"))
+        if self.H.is_cuda:
+            x = x.cuda()
         self.x = nn.Parameter(x, requires_grad=True)
         self.all_params = list(p for p in self.parameters() if p.requires_grad)
         self.func_val = self._eval()
@@ -83,11 +86,14 @@ class QuadraticEnvironment(nn.Module):
             2D torch.Tensor, 1D torch.Tensor batch, _, _ -- state, improvement, _, _
 
         """
+        global LR
+        if self.H.is_cuda:
+            LR = LR.cuda()
         step_size = LR.gather(0, step_size)
         step_size = step_size.unsqueeze(dim=-1).unsqueeze(dim=-1)
         self.x.data.add_(-step_size * self.x.grad.data)
         next_func_val = self._eval()
-        improvement = self.func_val - next_func_val
+        improvement = (self.func_val - next_func_val).clamp_(-VALUE_CLIP, VALUE_CLIP)
         self.func_val = next_func_val
         return self._get_state(), improvement, False, None
 
@@ -108,11 +114,14 @@ class QuadraticEnvironment(nn.Module):
         # x: [batch_size, dimension, 1]
         x = self.x
         # 0.5 * x^T * H * x + g^T * x
+        for x in self.all_params:
+            x.data.clamp_(-VALUE_CLIP, VALUE_CLIP)
+        torch.nn.utils.clip_grad_norm(self.all_params, NORM_CLIP, norm_type=2)
         result = torch.bmm(torch.bmm(x.transpose(1, 2), H), x).squeeze(dim=-1).squeeze(dim=-1) * 0.5 \
                + (g * x).squeeze(dim=-1).sum(dim=-1)
         assert len(result.shape) == 1
         self._zero_grad()
-        result.mean().backward()
+        result.sum().backward()
         return result.data
 
     def _zero_grad(self):
@@ -137,3 +146,21 @@ class QuadraticEnvironment(nn.Module):
         result = forward + backward + [self.func_val.view(self.batch_size, -1)]
         result = torch.cat(result, dim=1)
         return result
+
+
+def test():
+    import random, scipy
+    random.seed(42)
+    np.random.seed(42)
+    scipy.random.seed(42)
+    torch.manual_seed(42)
+    torch.cuda.manual_seed(42)
+
+    env = QuadraticEnvironment(batch_size=256, dimension=100)
+    state = env.reset()
+    result = env.step(torch.LongTensor([5]))
+    print("Done")
+
+
+if __name__ == "__main__":
+    test()
