@@ -17,7 +17,7 @@ NORM_CLIP = 10.0
 
 
 def _convert_to_param(ndarray, dtype="float32"):
-    ndarray = ndarray.astype("float32")
+    ndarray = ndarray.astype(dtype)
     ndarray = torch.from_numpy(ndarray)
     ndarray = nn.Parameter(ndarray, requires_grad=False)
     return ndarray
