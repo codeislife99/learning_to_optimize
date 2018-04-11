@@ -7,6 +7,14 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 
+def _to_cpu(x):
+    result = x
+    if isinstance(result, Variable):
+        result = result.data
+    if result.is_cuda:
+        result = result.cpu()
+    return result.numpy()
+
 def _to_scalar(tensor):
     return np.asscalar(tensor.cpu().numpy())
 
@@ -16,6 +24,9 @@ def _convert_to_var(tensor):
 
 
 def _optim_step(optim, _rewards, _log_probs, gamma):
+    """
+    _rewards : list of batched rewards, len(_rewards) == episode length
+    """
 
     def _get_rewards(rewards):
         decayed_r = 0.0
@@ -27,16 +38,21 @@ def _optim_step(optim, _rewards, _log_probs, gamma):
         return np.array(decayed_rewards, dtype="float32")
 
     def _get_loss(rewards, log_probs):
-        rewards = rewards.astype("float32").reshape(-1)
+        """
+        rewards: [episode length, batch size]
+        logs_probs: list of size episode length, each element has shape (batch size, )
+        """
+        # TODO: we should first average the loss for each batch and sum over all batches, instead of linearization
+        rewards = rewards.astype("float32").reshape(-1) # vector
         rewards = Variable(torch.from_numpy(rewards).cuda(), requires_grad=False)
-        log_probs = torch.cat(log_probs)
+        log_probs = torch.cat(log_probs) # vector
         policy_loss = (-rewards * log_probs).sum()
         loss = policy_loss
         return loss
 
     rewards = _get_rewards(_rewards)
     loss = _get_loss(rewards, _log_probs)
-    pyloss = loss.data[0]
+    pyloss = loss.data[0] # convert from 1x1 to scalar
 
     optim.zero_grad()
     loss.backward()
@@ -77,18 +93,21 @@ class Agent(nn.Module):
             action_cats = torch.distributions.Categorical(action_probs)
             action = action_cats.sample()
             log_prob = action_cats.log_prob(action)
-            # import pdb; pdb.set_trace()
             state, reward, _, _ = env.step(action.data.cpu())
             rewards.append(reward)
             log_probs.append(log_prob)
         _optim_step(optim, rewards, log_probs, gamma=0.99)
         return sum(rewards).mean()
 
-    def test_episode(self, env, n_steps):
+    def test_episode(self, env, n_steps, batch_size=1):
+        """
+        Returns:
+            list of scalars, list of scalars -- function values over n_steps, rewards
+        """
         new_tensor = self.action_head[0].weight.data.new
         memory = (
-            _convert_to_var(new_tensor(1, self.hidden_size).zero_()),
-            _convert_to_var(new_tensor(1, self.hidden_size).zero_()),
+            _convert_to_var(new_tensor(batch_size, self.hidden_size).zero_()),
+            _convert_to_var(new_tensor(batch_size, self.hidden_size).zero_()),
         )
         func_vals, rewards = [], []
         state = env.reset()
@@ -100,8 +119,8 @@ class Agent(nn.Module):
             _, action = action_probs.max(dim=-1)
             action = action.data
             state, reward, _, _ = env.step(action)
-            func_vals.append(_to_scalar(env.func_val))
-            rewards.append(_to_scalar(reward))
+            func_vals.append(_to_cpu(env.func_val))
+            rewards.append(_to_cpu(reward))
         return func_vals, rewards
 
     def load(self, path):

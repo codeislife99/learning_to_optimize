@@ -14,6 +14,9 @@ LR = torch.FloatTensor([1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 0.1, 1])
 
 
 def _convert_to_param(ndarray):
+    """
+    converts specified numpy array to torch parameter
+    """
     ndarray = ndarray.astype("float32")
     ndarray = torch.from_numpy(ndarray)
     ndarray = nn.Parameter(ndarray, requires_grad=False)
@@ -57,6 +60,9 @@ class QuadraticEnvironment(nn.Module):
         return B
 
     def reset(self):
+        """
+        reinitializes current parameter (current iterate), computes current function value and returns the state
+        """
         # x: [batch_size, dimension, 1]
         x = np.random.normal(0.0, 1.0, size=(self.batch_size, self.dimension, 1))
         x = torch.from_numpy(x.astype("float32"))
@@ -68,6 +74,15 @@ class QuadraticEnvironment(nn.Module):
         return self._get_state()
 
     def step(self, step_size): # pylint: disable=W0221
+        """
+        makes an iteration step in the optimization process.
+        
+        Parameter:
+            step_size [integer] -- index into LR tensor
+        Returns:
+            2D torch.Tensor, 1D torch.Tensor batch, _, _ -- state, improvement, _, _
+
+        """
         step_size = LR.gather(0, step_size)
         step_size = step_size.unsqueeze(dim=-1).unsqueeze(dim=-1)
         self.x.data.add_(-step_size * self.x.grad.data)
@@ -80,6 +95,12 @@ class QuadraticEnvironment(nn.Module):
         raise NotImplementedError
 
     def _eval(self):
+        """
+        evaluates the quadratic function at the current iterate self.x and computes the derivatives (equal to forward and backward pass).
+
+        Returns:
+             torch.Tensor -- batched objective function values
+        """
         # H: [batch_size, dimension, dimension]
         H = self.H
         # g: [batch_size, dimension, 1]
@@ -106,7 +127,7 @@ class QuadraticEnvironment(nn.Module):
         """Get the current state for the environment.
 
         Returns:
-            torch.Tensor -- The current state of the environment, including parameters, gradients, and current value of the function
+            2D torch.Tensor -- The current state of the environment, including parameters(current iterate), gradients, and current value of the function
         """
         forward = []
         backward = []
