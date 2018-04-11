@@ -49,6 +49,9 @@ def train(meta_model_path):
     agent.save(path=meta_model_path)
 
 def test(meta_optimizer_path):
+    """
+    loads meta model from path and compares the optimization using the meta model and with a base model on the same environment
+    """
     if args.env == 'quadratic':
         env = QuadraticEnvironment(batch_size=args.batch_size, dimension=args.dimension)
     elif args.env == 'logistic':

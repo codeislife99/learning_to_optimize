@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import numpy as np
-from numpy.linalg import inv
-from scipy.linalg import qr
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+import numpy as np
+from numpy.linalg import inv
+from scipy.linalg import qr
+
+from dataset import get_synthetic
 
 
 LR = torch.FloatTensor([1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 0.1, 1])
@@ -18,7 +20,7 @@ def _convert_to_param(ndarray):
     """
     converts specified numpy array to torch parameter
     """
-    ndarray = ndarray.astype("float32")
+    ndarray = ndarray.astype(dtype)
     ndarray = torch.from_numpy(ndarray)
     ndarray = nn.Parameter(ndarray, requires_grad=False)
     return ndarray
@@ -138,6 +140,138 @@ class QuadraticEnvironment(nn.Module):
         Returns:
             2D torch.Tensor -- The current state of the environment, including parameters(current iterate), gradients, and current value of the function
         """
+        forward = []
+        backward = []
+        for param in self.all_params:
+            forward.append(param.data.view(self.batch_size, -1))
+            backward.append(param.grad.data.view(self.batch_size, -1))
+        result = forward + backward + [self.func_val.view(self.batch_size, -1)]
+        result = torch.cat(result, dim=1)
+        return result
+
+
+class _MLP(nn.Module):
+
+    def __init__(self, input_dim, hidden_dim, output_dim, n_layers):
+        super(_MLP, self).__init__()
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.output_dim = output_dim
+        self.n_layers = n_layers
+        self.reset()
+        data_x, data_y = get_synthetic(n_samples=100, n_features=input_dim, n_classes=output_dim)
+        self.data_x = _convert_to_param(data_x)
+        self.data_y = _convert_to_param(data_y, dtype="int64")
+
+    def reset(self):
+        last_dim = self.input_dim
+        layers = []
+        for _ in range(self.n_layers - 1):
+            layers.append(nn.Linear(last_dim, self.hidden_dim, bias=True))
+            layers.append(nn.ReLU())
+        layers.append(nn.Linear(self.hidden_dim, self.output_dim))
+        self.layers = nn.Sequential(*layers)
+        self.param_pos = _MLP.get_param_pos(self)
+
+    def forward(self, *x):
+        raise NotImplementedError
+
+    def get_loss(self):
+        return nn.functional.cross_entropy(self.layers(self.data_x), self.data_y)
+
+    def get_weights(self):
+        return _MLP.to_param_vector(self, self.param_pos, use_grad=False)
+
+    def get_grad(self):
+        return _MLP.to_param_vector(self, self.param_pos, use_grad=True)
+
+    @staticmethod
+    def get_param_pos(model: nn.Module):
+        pos = {}
+        last_pos = 0
+        for name, param in model.named_parameters():
+            length = param.data.view(-1).size(0)
+            pos[name] = (last_pos, last_pos + length)
+            last_pos += length
+        assert "len" not in pos
+        pos["len"] = last_pos
+        return pos
+
+    @staticmethod
+    def to_param_vector(model: nn.Module, pos: dict, use_grad):
+        res = np.zeros(pos["len"], dtype="float32")
+        for name, param in model.named_parameters():
+            if use_grad:
+                param = param.grad.data.view(-1)
+            else:
+                param = param.data.view(-1)
+            st_pos, ed_pos = pos[name]
+            res[st_pos: ed_pos] = param.cpu().numpy()
+        res = torch.from_numpy(res)
+        return res
+
+
+class MlpEnvironment(nn.Module):
+
+    def __init__(self, batch_size, dimension, input_dim=2, hidden_dim=2, output_dim=2, n_layers=2):
+        super(MlpEnvironment, self).__init__()
+        mlps = []
+        for _ in range(batch_size):
+            mlp = _MLP(input_dim=input_dim,
+                       hidden_dim=hidden_dim,
+                       output_dim=output_dim,
+                       n_layers=n_layers)
+            assert mlp.param_pos["len"] == dimension
+            mlps.append(mlp)
+        self.mlps = nn.ModuleList(mlps)
+        self.all_params = None
+        self.func_val = None
+        self.reset()
+
+    def reset(self):
+        for mlp in self.mlps:
+            mlp.reset()
+        self.all_params = list(p for p in self.parameters() if p.requires_grad)
+        self.func_val = self._eval()
+        return self._get_state()
+
+    def step(self, step_size): # pylint: disable=W0221
+        global LR
+        if step_size.data.is_cuda:
+            LR = LR.cuda()
+        step_size = LR.gather(0, step_size)
+        step_size = step_size.unsqueeze(dim=-1).unsqueeze(dim=-1)
+        for param in self.all_params:
+            param.data.add(-step_size * self.x.grad.data)
+        next_func_val = self._eval()
+        improvement = (self.func_val - next_func_val).clamp_(-VALUE_CLIP, VALUE_CLIP)
+        self.func_val = next_func_val
+        return self._get_state(), improvement, False, None
+
+    def forward(self, *x):
+        raise NotImplementedError
+
+    def _eval(self):
+        losses = []
+        for mlp in self.mlps:
+            losses.append(mlp.get_loss())
+        loss = torch.cat(losses, dim=0)
+        self._zero_grad()
+        loss.sum().backward()
+        for x in self.all_params:
+            x.data.clamp_(-VALUE_CLIP, VALUE_CLIP)
+        torch.nn.utils.clip_grad_norm(self.all_params, NORM_CLIP, norm_type=2)
+        return loss.data
+
+    def _zero_grad(self):
+        for param in self.parameters():
+            if param.requires_grad is False:
+                continue
+            if param.grad is None:
+                param.grad = Variable(param.data.new(*param.shape))
+            param.grad.data.zero_()
+
+    def _get_state(self):
         forward = []
         backward = []
         for param in self.all_params:
