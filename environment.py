@@ -81,13 +81,14 @@ class LogisticEnvironment(object):
         self.mu = np.random.choice([0.1,0.5,1.0,2.0])
         self.X, self.Y = [], []
         for i in range(batch_size):
-            X, Y = make_classification(n_samples=sample_size, n_features=dimensions-1, n_informative=dimensions-11, n_redundant=0, n_repeated=0, n_classes=2, n_clusters_per_class=5, weights=None, flip_y=0.1, class_sep=self.mu)
+            X, Y = make_classification(n_samples=sample_size, n_features=dimensions-1, n_informative=dimensions-1, n_redundant=0, n_repeated=0, n_classes=2, n_clusters_per_class=3, weights=None, flip_y=0.1, class_sep=self.mu)
             X = np.hstack((np.ones((sample_size,1)), X))
             self.X.append(X)
             self.Y.append(Y)
         self.X = np.ascontiguousarray(np.stack(self.X))
         self.Y = np.ascontiguousarray(np.stack(self.Y))
         # Initial Function values and gradients
+        # import pdb;pdb.set_trace()
         logits = np.einsum('ijk,ik -> ij', self.X, self.current_iterate)
         labeled_logits = self.Y*logits
         exp_logits = np.maximum(labeled_logits, 0) + np.log(1 + np.exp(-np.abs(labeled_logits)))
@@ -134,7 +135,7 @@ class LogisticEnvironment(object):
         self.gradient = np.mean((mini_batchY.T*mini_batchX.T/(1+np.exp(-labeled_logits)).T).T, axis=1) + self.lamda*self.current_iterate
         reward = prev_func_val - func_val
         self.func_val = func_val
-        return np.hstack((self.current_iterate, self.gradient, np.clip(np.expand_dims(self.func_val,1), -1e4, 1e4))), reward
+        return np.hstack((self.current_iterate, self.gradient, np.clip(np.expand_dims(self.func_val,1), -1e4, 1e4))), reward, np.array(0), np.array(0), np.array(0)
 
 
 class _MLP(nn.Module):
@@ -192,14 +193,13 @@ class _MLP(nn.Module):
 
 class SimpleNeuralNetwork(object):
 
-    def __init__(self, batch_size, dimensions, input_dimensions=2, n_samples=100, hidden_dim=2):
+    def __init__(self, batch_size, dimensions, n_samples=100, hidden_dim=10):
         # TODO: definition of dimension
         from dataset import get_synthetic
-        data_x, data_y = get_synthetic(n_samples, input_dimensions, n_classes=2, n_clusters_per_class=2)
+        data_x, data_y = get_synthetic(n_samples, dimensions, n_classes=2)
         self.data_x = torch.from_numpy(data_x.astype("float32"))
         self.data_y = torch.from_numpy(data_y.astype("int64"))
         self.batch_size = batch_size
-        self.input_dimensions = input_dimensions
         self.dimensions = dimensions
         self.hidden_dim = hidden_dim
         self.reset_state()
@@ -210,8 +210,7 @@ class SimpleNeuralNetwork(object):
     def reset_state(self):
         data_x = Variable(self.data_x, volatile=False)
         data_y = Variable(self.data_y, volatile=False)
-        self.model = _MLP(self.input_dimensions, self.hidden_dim, 2, 2)
-        assert sum(map(lambda x: x.numel(), self.model.parameters())) == self.dimensions
+        self.model = _MLP(self.dimensions, self.hidden_dim, 2, 3)
         self.model.zero_grad()
         loss = self.model.get_loss(data_x, data_y)
         loss.backward()
@@ -228,23 +227,4 @@ class SimpleNeuralNetwork(object):
         for param in self.model.parameters():
             if param.grad is None:
                 continue
-            if isinstance(step_size, float):
-                param.data.add_(-step_size, param.grad.data)
-            else:
-                param.data.add_(-np.asscalar(step_size), param.grad.data)
-        func_val = loss.data[0]
-        self.current_iterate = self.model.get_weights()
-        self.gradient = self.model.get_grad()
-        reward = self.func_val - func_val
-        reward = np.array([reward])
-        self.func_val = func_val
-
-        diff = func_val
-        diff_x_squared = 0.0
-        diff_arr = 0.0
-
-        return np.hstack((self.current_iterate, self.gradient, np.clip(np.expand_dims(self.func_val,1), -1e4, 1e4))), \
-               np.clip(reward, -1e4, 1e4),      \
-               diff,                            \
-               diff_x_squared,                  \
-               diff_arr
+            param.data.add_(-step_size, param.grad.data)
