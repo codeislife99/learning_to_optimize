@@ -5,7 +5,7 @@ import torch.optim as optim
 
 from l2o.agent import Agent, _to_cpu
 from l2o.args import args
-from l2o.env import LR, QuadraticEnvironment
+from l2o.env import LR, QuadraticEnvironment, LogisticEnvironment
 from l2o.utils import plot_data
 
 
@@ -25,7 +25,9 @@ def train(meta_model_path):
     if args.env == 'quadratic':
         env = QuadraticEnvironment(batch_size=args.batch_size, dimension=args.dimension)
     elif args.env == 'logistic':
-        pass
+        env = LogisticEnvironment(batch_size=args.batch_size, dimension=args.dimension)
+    else:
+        raise NotImplementedError
 
     action_size = len(LR)
     state_size = 2 * args.dimension + 1
@@ -42,7 +44,6 @@ def train(meta_model_path):
 
         distance_x = ((current_x - env.x_opt) * (current_x - env.x_opt)).sum(axis=1).mean()
         distance_func_val = (current_func_val - env.f_opt).mean()
-
         print(f"episode {episode}, mean reward {mean_reward:.4f} distance_x {distance_x:.4f} distance_func_val {distance_func_val:.4f} opt_func {env.f_opt.mean():.4f}")
 
     agent.save(path=meta_model_path)
@@ -116,7 +117,7 @@ def main():
     
     meta_model_path = f'{args.save_dir}/meta_model.pth'
     
-    # train(meta_model_path)
+    train(meta_model_path)
 
     test(meta_model_path)
 
