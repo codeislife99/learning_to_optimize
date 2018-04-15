@@ -8,7 +8,7 @@ import numpy as np
 from numpy.linalg import inv
 from scipy.linalg import qr
 
-from dataset import get_synthetic
+# from l2o.dataset import get_synthetic
 
 
 LR = torch.FloatTensor([1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 0.1, 1])
@@ -16,10 +16,11 @@ VALUE_CLIP = 1e4
 NORM_CLIP = 10.0
 
 
-def _convert_to_param(ndarray):
+def _convert_to_param(ndarray, dtype='float32'):
     """
     converts specified numpy array to torch parameter
     """
+
     ndarray = ndarray.astype(dtype)
     ndarray = torch.from_numpy(ndarray)
     ndarray = nn.Parameter(ndarray, requires_grad=False)
