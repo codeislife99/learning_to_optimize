@@ -11,6 +11,9 @@ from scipy.linalg import qr
 from dataset import get_synthetic
 
 
+# LR = torch.FloatTensor([1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3])
+# LR = torch.FloatTensor([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+# LR = torch.FloatTensor([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2])
 LR = torch.FloatTensor([1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 0.1, 1])
 VALUE_CLIP = 1e4
 NORM_CLIP = 10.0
@@ -143,13 +146,19 @@ class _MLP(nn.Module):
         self.data_y = _convert_to_param(data_y, dtype="int64")
 
     def reset(self):
-        last_dim = self.input_dim
-        layers = []
-        for _ in range(self.n_layers - 1):
-            layers.append(nn.Linear(last_dim, self.hidden_dim, bias=True))
-            layers.append(nn.ReLU())
-        layers.append(nn.Linear(self.hidden_dim, self.output_dim))
-        self.layers = nn.Sequential(*layers)
+        if hasattr(self, "layers"):
+            for layer in self.layers: # pylint: disable=E0203
+                if hasattr(layer, "reset_parameters"):
+                    layer.reset_parameters()
+        else:
+            layers = []
+            last_dim = self.input_dim
+            for _ in range(self.n_layers - 1):
+                layers.append(nn.Linear(last_dim, self.hidden_dim, bias=True))
+                layers.append(nn.ReLU())
+                last_dim = self.hidden_dim
+            layers.append(nn.Linear(last_dim, self.output_dim))
+            self.layers = nn.Sequential(*layers)
         self.param_pos = _MLP.get_param_pos(self)
 
     def forward(self, *x):
@@ -169,6 +178,8 @@ class _MLP(nn.Module):
         pos = {}
         last_pos = 0
         for name, param in model.named_parameters():
+            if not param.requires_grad:
+                continue
             length = param.data.view(-1).size(0)
             pos[name] = (last_pos, last_pos + length)
             last_pos += length
@@ -179,20 +190,25 @@ class _MLP(nn.Module):
     @staticmethod
     def to_param_vector(model: nn.Module, pos: dict, use_grad):
         res = np.zeros(pos["len"], dtype="float32")
+        if model.data_x.is_cuda:
+            res = torch.cuda.FloatTensor(pos["len"])
+        else:
+            res = torch.FloatTensor(pos["len"])
         for name, param in model.named_parameters():
+            if not param.requires_grad:
+                continue
             if use_grad:
                 param = param.grad.data.view(-1)
             else:
                 param = param.data.view(-1)
             st_pos, ed_pos = pos[name]
-            res[st_pos: ed_pos] = param.cpu().numpy()
-        res = torch.from_numpy(res)
+            res[st_pos: ed_pos].copy_(param)
         return res
 
 
 class MlpEnvironment(nn.Module):
 
-    def __init__(self, batch_size, dimension, input_dim=2, hidden_dim=2, output_dim=2, n_layers=2):
+    def __init__(self, batch_size, dimension, input_dim=2, hidden_dim=10, output_dim=2, n_layers=3):
         super(MlpEnvironment, self).__init__()
         mlps = []
         for _ in range(batch_size):
@@ -200,28 +216,28 @@ class MlpEnvironment(nn.Module):
                        hidden_dim=hidden_dim,
                        output_dim=output_dim,
                        n_layers=n_layers)
-            assert mlp.param_pos["len"] == dimension
+            assert mlp.param_pos["len"] == dimension, f"Dimension should be {mlp.param_pos['len']}"
             mlps.append(mlp)
         self.mlps = nn.ModuleList(mlps)
-        self.all_params = None
         self.func_val = None
         self.reset()
 
     def reset(self):
         for mlp in self.mlps:
             mlp.reset()
-        self.all_params = list(p for p in self.parameters() if p.requires_grad)
         self.func_val = self._eval()
         return self._get_state()
 
     def step(self, step_size): # pylint: disable=W0221
         global LR
-        if step_size.data.is_cuda:
+        if step_size.is_cuda:
             LR = LR.cuda()
         step_size = LR.gather(0, step_size)
-        step_size = step_size.unsqueeze(dim=-1).unsqueeze(dim=-1)
-        for param in self.all_params:
-            param.data.add(-step_size * self.x.grad.data)
+        for idx, mlp in enumerate(self.mlps):
+            step_size_i = step_size[idx]
+            for param in mlp.parameters():
+                if param.requires_grad:
+                    param.data.add_(-step_size_i, param.grad.data)
         next_func_val = self._eval()
         improvement = (self.func_val - next_func_val).clamp_(-VALUE_CLIP, VALUE_CLIP)
         self.func_val = next_func_val
@@ -237,9 +253,10 @@ class MlpEnvironment(nn.Module):
         loss = torch.cat(losses, dim=0)
         self._zero_grad()
         loss.sum().backward()
-        for x in self.all_params:
-            x.data.clamp_(-VALUE_CLIP, VALUE_CLIP)
-        torch.nn.utils.clip_grad_norm(self.all_params, NORM_CLIP, norm_type=2)
+        for x in self.parameters():
+            if x.requires_grad:
+                x.data.clamp_(-VALUE_CLIP, VALUE_CLIP)
+        torch.nn.utils.clip_grad_norm([x for x in self.parameters() if x.requires_grad], NORM_CLIP, norm_type=2)
         return loss.data
 
     def _zero_grad(self):
@@ -251,29 +268,13 @@ class MlpEnvironment(nn.Module):
             param.grad.data.zero_()
 
     def _get_state(self):
-        forward = []
-        backward = []
-        for param in self.all_params:
-            forward.append(param.data.view(self.batch_size, -1))
-            backward.append(param.grad.data.view(self.batch_size, -1))
-        result = forward + backward + [self.func_val.view(self.batch_size, -1)]
+        batch_size = len(self.mlps)
+        forward, backward = [], []
+        for mlp in self.mlps:
+            forward.append(mlp.get_weights())
+            backward.append(mlp.get_grad())
+        forward = torch.stack(forward, dim=0)
+        backward = torch.stack(backward, dim=0)
+        result = [forward, backward, self.func_val.view(batch_size, -1)]
         result = torch.cat(result, dim=1)
         return result
-
-
-def test():
-    import random, scipy
-    random.seed(42)
-    np.random.seed(42)
-    scipy.random.seed(42)
-    torch.manual_seed(42)
-    torch.cuda.manual_seed(42)
-
-    env = QuadraticEnvironment(batch_size=256, dimension=100)
-    state = env.reset()
-    result = env.step(torch.LongTensor([5]))
-    print("Done")
-
-
-if __name__ == "__main__":
-    test()
