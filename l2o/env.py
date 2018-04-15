@@ -13,8 +13,6 @@ from sklearn.datasets import make_classification
 
 
 LR = torch.FloatTensor([1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 0.1, 1])
-LAMDBA = torch.FloatTensor([1e-1, 1e-2, 1e-3, 1e-4, 1e-5])
-MU = np.random.choice([0.1,0.5,1.0,2.0])
 
 
 VALUE_CLIP = 1e4
@@ -162,8 +160,9 @@ class LogisticEnvironment(nn.Module):
         self.batch_size = batch_size
         self.dimension = dimension
         self.sample_size = sample_size
-        
-        X, Y = self._generate_parameters(batch_size=self.batch_size, dimension=self.dimension, sample_size=self.sample_size)
+        self.lamda = float(np.random.choice([1e-1, 1e-2, 1e-3, 1e-4, 1e-5]).astype('float32'))
+        self.mu = np.random.choice([0.1,0.5,1.0,2.0])
+        X, Y = self._generate_parameters(batch_size=self.batch_size, dimension=self.dimension, sample_size=self.sample_size, mu=self.mu)
         self.X = _convert_to_param(X)
         self.Y = _convert_to_param(Y)
 
@@ -183,10 +182,10 @@ class LogisticEnvironment(nn.Module):
         #idx = np.random.choice(self.sample_size, size=self.sample_size//10, replace=False)
         #self.Y[:,idx] = -1*self.Y[:,idx]
     @staticmethod
-    def _generate_parameters(batch_size, dimension, sample_size):
+    def _generate_parameters(batch_size, dimension, sample_size, mu):
         res_X, res_Y = [], []
         for i in range(batch_size):
-            X, Y = make_classification(n_samples=sample_size, n_features=dimension-1, n_informative=dimension-11, n_redundant=0, n_repeated=0, n_classes=2, n_clusters_per_class=5, weights=None, flip_y=0.1, class_sep=MU)
+            X, Y = make_classification(n_samples=sample_size, n_features=dimension-1, n_informative=dimension-11, n_redundant=0, n_repeated=0, n_classes=2, n_clusters_per_class=5, weights=None, flip_y=0.1, class_sep=mu)
             X = np.hstack((np.ones((sample_size,1)), X))
             res_X.append(X)
             res_Y.append(Y)
@@ -254,16 +253,14 @@ class LogisticEnvironment(nn.Module):
         if X.is_cuda:
             idx = idx.cuda()
 
-        import ipdb; ipdb.set_trace()
-
         mini_batchX = X.index_select(1, idx)
         mini_batchY = Y.index_select(1, idx)
 
 
-        logits = torch.bmm(mini_batchX * x).squeeze(dim=-1).sum(dim=-1)
+        logits = torch.bmm(mini_batchX, x).squeeze(dim=-1)
         labeled_logits = mini_batchY * logits
         exp_logits = labeled_logits.max(0)[0] + torch.log(1 + torch.exp(-labeled_logits.abs()))
-        result = exp_logits.mean(dim=1) + 0.5 * LAMBDA * (x * x).sum(dim=1)
+        result = exp_logits.mean(dim=1) + 0.5 * self.lamda * (x * x).squeeze(dim=-1).sum(dim=1)
         #pdb.set_trace()
 
         assert len(result.shape) == 1

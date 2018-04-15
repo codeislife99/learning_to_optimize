@@ -42,9 +42,14 @@ def train(meta_model_path):
         current_x = env.x.data.squeeze(dim=-1).cpu().numpy()
         current_func_val = env.func_val.cpu().numpy()
 
-        distance_x = ((current_x - env.x_opt) * (current_x - env.x_opt)).sum(axis=1).mean()
-        distance_func_val = (current_func_val - env.f_opt).mean()
-        print(f"episode {episode}, mean reward {mean_reward:.4f} distance_x {distance_x:.4f} distance_func_val {distance_func_val:.4f} opt_func {env.f_opt.mean():.4f}")
+        if args.env == 'quadratic':
+            distance_x = ((current_x - env.x_opt) * (current_x - env.x_opt)).sum(axis=1).mean()
+            distance_func_val = (current_func_val - env.f_opt).mean()
+            print(f"episode {episode}, mean reward {mean_reward:.4f} func_val {current_func_val.mean():.4f} distance_x {distance_x:.4f} distance_func_val {distance_func_val:.4f} opt_func {env.f_opt.mean():.4f}")
+        elif args.env == 'logistic':
+            print(f"episode {episode}, mean reward {mean_reward:.4f} func_val {current_func_val.mean():.4f}")
+        else:
+            raise NotImplementedError
 
     agent.save(path=meta_model_path)
 
