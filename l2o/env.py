@@ -402,8 +402,8 @@ class MlpEnvironment(nn.Module):
         loss = torch.cat(losses, dim=0)
         self._zero_grad()
         loss.sum().backward()
-        for x in self.all_params:
-            x.data.clamp_(-VALUE_CLIP, VALUE_CLIP)
+        for p in self.all_params:
+            p.data.clamp_(-VALUE_CLIP, VALUE_CLIP)
         torch.nn.utils.clip_grad_norm(self.all_params, NORM_CLIP, norm_type=2)
         return loss.data
 

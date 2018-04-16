@@ -77,6 +77,7 @@ def test(meta_optimizer_path):
     
     env.reset()
     base_optimizer = optim.Adam(env.all_params, lr=args.lr_base, eps=1e-5)
+    # base_optimizer = optim.SGD(env.all_params, lr=args.lr_base)
     base_func_vals, base_rewards = [], []
     for step in range(args.n_steps_test):
         base_optimizer.zero_grad()
@@ -120,9 +121,9 @@ def test(meta_optimizer_path):
 
 def main():
     
-    meta_model_path = f'{args.save_dir}/meta_model.pth'
+    meta_model_path = f'{args.save_dir}/quadratic_meta_model.pth'
     
-    train(meta_model_path)
+    # train(meta_model_path)
 
     test(meta_model_path)
 
