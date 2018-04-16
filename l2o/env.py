@@ -98,8 +98,8 @@ class QuadraticEnvironment(nn.Module):
         # x: [batch_size, dimension, 1]
         x = self.x
         # 0.5 * x^T * H * x + g^T * x
-        for x in self.all_params:
-            x.data.clamp_(-VALUE_CLIP, VALUE_CLIP)
+        for p in self.all_params:
+            p.data.clamp_(-VALUE_CLIP, VALUE_CLIP)
         torch.nn.utils.clip_grad_norm(self.all_params, NORM_CLIP, norm_type=2)
         result = torch.bmm(torch.bmm(x.transpose(1, 2), H), x).squeeze(dim=-1).squeeze(dim=-1) * 0.5 \
                + (g * x).squeeze(dim=-1).sum(dim=-1)
@@ -225,6 +225,10 @@ class MlpEnvironment(nn.Module):
     def reset(self):
         for mlp in self.mlps:
             mlp.reset()
+        self.all_params = []
+        for param in self.parameters():
+            if param.requires_grad:
+                self.all_params.append(param)
         self.func_val = self._eval()
         return self._get_state()
 
