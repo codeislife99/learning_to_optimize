@@ -11,7 +11,9 @@ from sklearn.datasets import make_classification
 from l2o.dataset import get_synthetic
 
 
-LR = torch.FloatTensor([1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 0.1, 1])
+# LR = torch.FloatTensor([1e-5, 1e-4, 1e-3, 1e-2, 0.1, 0.5, 1])
+
+LR = torch.FloatTensor([ 1e-2, 0.1, 0.25, 0.5, 0.75, 1, 2])
 
 
 VALUE_CLIP = 1e4

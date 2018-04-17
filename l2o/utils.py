@@ -1,4 +1,6 @@
 import numpy as np 
+import os.path as osp
+import os
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt 
@@ -11,3 +13,10 @@ def plot_data(data_x, data_y, label_x, label_y, label, fig_no):
     plt.ylabel(label_y)
     plt.xlabel(label_x)
     return fig
+
+
+def create_dir(directory):
+    if not osp.exists(directory):
+        os.makedirs(directory)
+        print(f"created directory: {directory}")
+    
