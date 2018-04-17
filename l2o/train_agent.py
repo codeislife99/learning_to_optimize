@@ -86,17 +86,17 @@ def test():
     fig_func_val = plot_data(data_x=data_x, data_y=avg_base_func_vals, label_x='steps', label_y='Func Val', label='adam', fig_no=0)
     fig_rewards = plot_data(data_x=data_x, data_y=avg_base_rewards, label_x='steps', label_y='rewards', label='adam', fig_no=1)
 
-        if args.env == 'quadratic':
-            current_x = env.x.data.squeeze(dim=-1).cpu().numpy()
-            distance_x = ((current_x - env.x_opt) * (current_x - env.x_opt)).sum(axis=1).mean()
-            distance_func_val = (current_func_val - env.f_opt).mean()
-            print(f"episode {episode}, mean reward {mean_reward:.4f} func_val {current_func_val.mean():.4f} distance_x {distance_x:.4f} distance_func_val {distance_func_val:.4f} opt_func {env.f_opt.mean():.4f}")
-        elif args.env == 'logistic':
-            print(f"episode {episode}, mean reward {mean_reward:.4f} func_val {current_func_val.mean():.4f}")
-        elif args.env == "mlp":
-            print(f"Episode {episode}, mean reward {mean_reward:.4f}, loss {current_func_val.mean():.4f}")
-        else:
-            raise NotImplementedError
+    if args.env == 'quadratic':
+        current_x = env.x.data.squeeze(dim=-1).cpu().numpy()
+        distance_x = ((current_x - env.x_opt) * (current_x - env.x_opt)).sum(axis=1).mean()
+        distance_func_val = (current_func_val - env.f_opt).mean()
+        print(f"episode {episode}, mean reward {mean_reward:.4f} func_val {current_func_val.mean():.4f} distance_x {distance_x:.4f} distance_func_val {distance_func_val:.4f} opt_func {env.f_opt.mean():.4f}")
+    elif args.env == 'logistic':
+        print(f"episode {episode}, mean reward {mean_reward:.4f} func_val {current_func_val.mean():.4f}")
+    elif args.env == "mlp":
+        print(f"Episode {episode}, mean reward {mean_reward:.4f}, loss {current_func_val.mean():.4f}")
+    else:
+        raise NotImplementedError
 
     agent.save(path=meta_model_path)
 
