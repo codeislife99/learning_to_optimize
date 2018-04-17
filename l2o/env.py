@@ -7,19 +7,25 @@ from torch.autograd import Variable
 import numpy as np
 from numpy.linalg import inv
 from scipy.linalg import qr
-
-from dataset import get_synthetic
+from sklearn.datasets import make_classification
+from l2o.dataset import get_synthetic
 
 
 # LR = torch.FloatTensor([1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3])
 # LR = torch.FloatTensor([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
 # LR = torch.FloatTensor([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2])
 LR = torch.FloatTensor([1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 0.1, 1])
+
+
 VALUE_CLIP = 1e4
 NORM_CLIP = 10.0
 
 
-def _convert_to_param(ndarray, dtype="float32"):
+def _convert_to_param(ndarray, dtype='float32'):
+    """
+    converts specified numpy array to torch parameter
+    """
+
     ndarray = ndarray.astype(dtype)
     ndarray = torch.from_numpy(ndarray)
     ndarray = nn.Parameter(ndarray, requires_grad=False)
@@ -33,7 +39,7 @@ class QuadraticEnvironment(nn.Module):
         self.batch_size = batch_size
         self.dimension = dimension
         # H: [batch_size, dimension, dimension]
-        H = np.asarray([self._generate_psd2(dimension) for _ in range(batch_size)])
+        H = np.asarray([self._generate_psd(dimension) for _ in range(batch_size)])
         self.H = _convert_to_param(H)
         # g: [batch_size, dimension, 1]
         g = np.asarray([np.random.rand(dimension) for _ in range(batch_size)])
@@ -63,6 +69,9 @@ class QuadraticEnvironment(nn.Module):
         return B
 
     def reset(self):
+        """
+        reinitializes current parameter (current iterate), computes current function value and returns the state
+        """
         # x: [batch_size, dimension, 1]
         x = np.random.normal(0.0, 1.0, size=(self.batch_size, self.dimension, 1))
         x = torch.from_numpy(x.astype("float32"))
@@ -76,6 +85,15 @@ class QuadraticEnvironment(nn.Module):
         return self._get_state()
 
     def step(self, step_size): # pylint: disable=W0221
+        """
+        makes an iteration step in the optimization process.
+        
+        Parameter:
+            step_size [integer] -- index into LR tensor
+        Returns:
+            2D torch.Tensor, 1D torch.Tensor batch, _, _ -- state, improvement, _, _
+
+        """
         global LR
         if self.H.is_cuda:
             LR = LR.cuda()
@@ -91,6 +109,12 @@ class QuadraticEnvironment(nn.Module):
         raise NotImplementedError
 
     def _eval(self):
+        """
+        evaluates the quadratic function at the current iterate self.x and computes the derivatives (equal to forward and backward pass).
+
+        Returns:
+             torch.Tensor -- batched objective function values
+        """
         # H: [batch_size, dimension, dimension]
         H = self.H
         # g: [batch_size, dimension, 1]
@@ -120,7 +144,7 @@ class QuadraticEnvironment(nn.Module):
         """Get the current state for the environment.
 
         Returns:
-            torch.Tensor -- The current state of the environment, including parameters, gradients, and current value of the function
+            2D torch.Tensor -- The current state of the environment, including parameters(current iterate), gradients, and current value of the function
         """
         forward = []
         backward = []
@@ -130,6 +154,147 @@ class QuadraticEnvironment(nn.Module):
         result = forward + backward + [self.func_val.view(self.batch_size, -1)]
         result = torch.cat(result, dim=1)
         return result
+
+class LogisticEnvironment(nn.Module):
+
+    def __init__(self, batch_size, dimension, sample_size=1000):
+        super(LogisticEnvironment, self).__init__()
+        self.batch_size = batch_size
+        self.dimension = dimension
+        self.sample_size = sample_size
+        self.lamda = float(np.random.choice([1e-1, 1e-2, 1e-3, 1e-4, 1e-5]).astype('float32'))
+        self.mu = np.random.choice([0.1,0.5,1.0,2.0])
+        X, Y = self._generate_parameters(batch_size=self.batch_size, dimension=self.dimension, sample_size=self.sample_size, mu=self.mu)
+        self.X = _convert_to_param(X)
+        self.Y = _convert_to_param(Y)
+
+        self.x = None
+        self.all_params = None
+        self.func_val = None
+        # Data generation for logistic regression
+        # Weight for data generation
+        #self.w = self.mu*np.random.rand(batch_size, dimensions)
+        # Generate Features
+        #self.X = 2*np.random.randn(batch_size, sample_size, dimensions)
+        # add 1 to incorporate bias terms
+        #self.X[:,:,0] = 1
+        # Get labels
+        #logits = np.einsum('ijk,ik -> ij', self.X, self.w)
+        #self.Y = 2*(1/(1 + np.exp(logits)) > np.random.rand(batch_size,sample_size)) - 1
+        #idx = np.random.choice(self.sample_size, size=self.sample_size//10, replace=False)
+        #self.Y[:,idx] = -1*self.Y[:,idx]
+    @staticmethod
+    def _generate_parameters(batch_size, dimension, sample_size, mu):
+        res_X, res_Y = [], []
+        for i in range(batch_size):
+            X, Y = make_classification(n_samples=sample_size, n_features=dimension-1, n_informative=dimension-11, n_redundant=0, n_repeated=0, n_classes=2, n_clusters_per_class=5, weights=None, flip_y=0.1, class_sep=mu)
+            X = np.hstack((np.ones((sample_size,1)), X))
+            res_X.append(X)
+            res_Y.append(Y)
+        res_X = np.ascontiguousarray(np.stack(res_X))
+        res_Y = np.ascontiguousarray(np.stack(res_Y))
+        return res_X, res_Y
+
+    def reset(self):
+        """
+        reinitializes current parameter (current iterate), computes current function value and returns the state
+        """
+        # x: [batch_size, dimension, 1]
+        x = 0.5 * np.ones((self.batch_size, self.dimension, 1)) #np.random.normal(0.0, 1.0, size=(self.batch_size, self.dimension, 1)) 
+        x = torch.from_numpy(x.astype("float32"))
+        if self.X.is_cuda :
+            x = x.cuda()
+        self.x = nn.Parameter(x, requires_grad=True)
+
+        self.all_params = list(p for p in self.parameters() if p.requires_grad)
+        self.func_val = self._eval()
+        #print("# of weights:", len(self.all_params))
+        #print("# of parameters:", sum(x.numel() for x in self.all_params))
+        return self._get_state()
+
+
+
+    def step(self, step_size): # pylint: disable=W0221
+        """
+        makes an iteration step in the optimization process.
+        
+        Parameter:
+            step_size [integer] -- index into LR tensor
+        Returns:
+            2D torch.Tensor, 1D torch.Tensor batch, _, _ -- state, improvement, _, _
+
+        """
+        global LR
+        if self.X.is_cuda:
+            LR = LR.cuda()
+        step_size = LR.gather(0, step_size)
+        step_size = step_size.unsqueeze(dim=-1).unsqueeze(dim=-1)
+        self.x.data.add_(-step_size * self.x.grad.data)
+        next_func_val = self._eval()
+        improvement = (self.func_val - next_func_val).clamp_(-VALUE_CLIP, VALUE_CLIP)
+        self.func_val = next_func_val
+        return self._get_state(), improvement, False, None
+
+    
+    def _eval(self):
+        """
+        evaluates the quadratic function at the current iterate self.x and computes the derivatives (equal to forward and backward pass).
+
+        Returns:
+             torch.Tensor -- batched objective function values
+        """
+        X = self.X
+        Y = self.Y
+        x = self.x
+        for p in self.all_params:
+            p.data.clamp_(-VALUE_CLIP, VALUE_CLIP)
+        torch.nn.utils.clip_grad_norm(self.all_params, NORM_CLIP, norm_type=2)
+
+        mini_batch_size=50
+        idx = Variable(torch.from_numpy(np.random.choice(self.sample_size, size=mini_batch_size, replace=False)).type(torch.LongTensor), requires_grad=False)
+        if X.is_cuda:
+            idx = idx.cuda()
+
+        mini_batchX = X.index_select(1, idx)
+        mini_batchY = Y.index_select(1, idx)
+
+
+        logits = torch.bmm(mini_batchX, x).squeeze(dim=-1)
+        labeled_logits = mini_batchY * logits
+        exp_logits = labeled_logits.max(0)[0] + torch.log(1 + torch.exp(-labeled_logits.abs()))
+        result = exp_logits.mean(dim=1) + 0.5 * self.lamda * (x * x).squeeze(dim=-1).sum(dim=1)
+        #pdb.set_trace()
+
+        assert len(result.shape) == 1
+        self._zero_grad()
+        result.sum().backward()
+        return result.data
+
+
+
+    def _zero_grad(self):
+        for param in self.parameters():
+            if param.requires_grad is False:
+                continue
+            if param.grad is None:
+                param.grad = Variable(param.data.new(*param.shape))
+            param.grad.data.zero_()
+
+    def _get_state(self):
+        """Get the current state for the environment.
+
+        Returns:
+            2D torch.Tensor -- The current state of the environment, including parameters(current iterate), gradients, and current value of the function
+        """
+        forward = []
+        backward = []
+        for param in self.all_params:
+            forward.append(param.data.view(self.batch_size, -1))
+            backward.append(param.grad.data.view(self.batch_size, -1))
+        result = forward + backward + [self.func_val.view(self.batch_size, -1)]
+        result = torch.cat(result, dim=1)
+        return result
+
 
 
 class _MLP(nn.Module):
