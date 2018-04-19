@@ -59,7 +59,6 @@ def main():
     create_dir(meta_model_dir)
     print(f'meta_model_dir: {meta_model_dir}')
     train(meta_model_dir)
-    test(meta_model_dir)
 
 if __name__ == "__main__":
     main()
