@@ -21,7 +21,7 @@ def test(meta_model_dir):
     if args.env == 'mlp':
         env = MlpEnvironment(batch_size=args.batch_size, dimension=args.dimension)
     elif args.env == 'logistic':
-        env = QuadraticEnvironment(batch_size=args.batch_size, dimension=args.dimension)
+        env = LogisticEnvironment(batch_size=args.batch_size, dimension=args.dimension)
 
     action_size = len(LR)
     state_size = 2 * args.dimension + 1
