@@ -299,38 +299,33 @@ class LogisticEnvironment(nn.Module):
 
 class _MLP(nn.Module):
 
-    def __init__(self, input_dim, hidden_dim, output_dim, n_layers):
+    def __init__(self):
+        from sklearn.datasets import load_iris
         super(_MLP, self).__init__()
-        self.input_dim = input_dim
-        self.hidden_dim = hidden_dim
-        self.output_dim = output_dim
-        self.n_layers = n_layers
-        self.reset()
-        data_x, data_y = get_synthetic(n_samples=100, n_features=input_dim, n_classes=output_dim)
+        self.net = nn.Sequential(
+            nn.Linear(4, 10),
+            nn.ReLU(),
+            nn.Linear(10, 10),
+            nn.ReLU(),
+            nn.Linear(10, 3)
+        )
+        iris = load_iris()                       # input_dim = 4, output_dim = 3
+        data_x, data_y = iris.data, iris.target  # pylint: disable=E1101
         self.data_x = _convert_to_param(data_x)
         self.data_y = _convert_to_param(data_y, dtype="int64")
+        self.reset()
 
     def reset(self):
-        if hasattr(self, "layers"):
-            for layer in self.layers: # pylint: disable=E0203
-                if hasattr(layer, "reset_parameters"):
-                    layer.reset_parameters()
-        else:
-            layers = []
-            last_dim = self.input_dim
-            for _ in range(self.n_layers - 1):
-                layers.append(nn.Linear(last_dim, self.hidden_dim, bias=True))
-                layers.append(nn.ReLU())
-                last_dim = self.hidden_dim
-            layers.append(nn.Linear(last_dim, self.output_dim))
-            self.layers = nn.Sequential(*layers)
+        for layer in self.net:
+            if hasattr(layer, "reset_parameters"):
+                layer.reset_parameters()
         self.param_pos = _MLP.get_param_pos(self)
 
     def forward(self, *x):
         raise NotImplementedError
 
     def get_loss(self):
-        return nn.functional.cross_entropy(self.layers(self.data_x), self.data_y)
+        return nn.functional.cross_entropy(self.net(self.data_x), self.data_y)
 
     def get_weights(self):
         return _MLP.to_param_vector(self, self.param_pos, use_grad=False)
@@ -373,14 +368,11 @@ class _MLP(nn.Module):
 
 class MlpEnvironment(nn.Module):
 
-    def __init__(self, batch_size, dimension, input_dim=2, hidden_dim=10, output_dim=2, n_layers=3):
+    def __init__(self, batch_size, dimension):
         super(MlpEnvironment, self).__init__()
         mlps = []
         for _ in range(batch_size):
-            mlp = _MLP(input_dim=input_dim,
-                       hidden_dim=hidden_dim,
-                       output_dim=output_dim,
-                       n_layers=n_layers)
+            mlp = _MLP()
             assert mlp.param_pos["len"] == dimension, f"Dimension should be {mlp.param_pos['len']}"
             mlps.append(mlp)
         self.mlps = nn.ModuleList(mlps)

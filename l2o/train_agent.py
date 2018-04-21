@@ -47,6 +47,8 @@ def train(meta_model_path):
     for episode in range(args.n_episodes):
         mean_reward = agent.train_episode(env=env, n_steps=args.n_steps, optim=optimizer)
         current_func_val = env.func_val.cpu().numpy()
+        if episode % 100 == 0:
+            agent.save(path=meta_model_path + "." + str(episode))
         print(f"Episode {episode}, mean reward {mean_reward:.4f}, loss {current_func_val.mean():.4f}")
 
 

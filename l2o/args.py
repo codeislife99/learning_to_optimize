@@ -5,7 +5,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--batch_size', type=int, default=64)
-parser.add_argument('--dimension', type=int, default=162)
+parser.add_argument('--dimension', type=int, default=193)
 parser.add_argument('--hidden_size', type=int, default=10)
 parser.add_argument('--n_episodes', type=int, default=10000)
 parser.add_argument('--n_steps', type=int, default=100)
