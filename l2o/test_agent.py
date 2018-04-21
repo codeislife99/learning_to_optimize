@@ -70,11 +70,11 @@ def test(meta_model_dir):
 
     print(f"meta val: {avg_meta_func_vals[-1]:.4f}, base val: {avg_base_func_vals[-1]:.4f}")
 
-    print(f'saving plot to {meta_model_dir}/func_val.png')
-    fig_func_val.savefig(f'{meta_model_dir}/func_val.png')
+    print(f'saving plot to {meta_model_dir}/func_val_{args.optim_base}.png')
+    fig_func_val.savefig(f'{meta_model_dir}/func_val_{args.optim_base}.png')
 
-    print(f'saving plot to {meta_model_dir}/rewards.png')
-    fig_rewards.savefig(f'{meta_model_dir}/rewards.png')
+    print(f'saving plot to {meta_model_dir}/rewards_{args.optim_base}.png')
+    fig_rewards.savefig(f'{meta_model_dir}/rewards_{args.optim_base}.png')
     
 
 def main():
