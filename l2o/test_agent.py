@@ -31,6 +31,8 @@ def test(meta_model_dir):
 
     env.reset()
     env.cuda()
+
+    # import ipdb; ipdb.set_trace()
     meta_func_vals, meta_rewards = agent.test_episode(env=env, n_steps=args.n_steps_test, batch_size=args.batch_size) # list of scalars, list of scalars
     meta_func_vals = np.asarray(meta_func_vals)
     meta_rewards = np.asarray(meta_rewards)
@@ -45,7 +47,8 @@ def test(meta_model_dir):
         base_optimizer = optim.SGD(env.all_params, lr=args.lr_base)
 
     base_func_vals, base_rewards = [], []
-    for step in range(args.n_steps_test):
+    # import ipdb; ipdb.set_trace()
+    for step in trange(args.n_steps_test):
         base_optimizer.zero_grad()
         prev_func_vals = env.func_val
         next_func_vals = env._eval()
@@ -62,24 +65,24 @@ def test(meta_model_dir):
 
     data_x = np.arange(args.n_steps_test)
     fig_func_val = plot_data(data_x=data_x, data_y=avg_meta_func_vals, label_x='steps', label_y='Func Val', label='meta', fig_no=0)
-    fig_func_val = plot_data(data_x=data_x, data_y=avg_base_func_vals, label_x='steps', label_y='Func Val', label='adam', fig_no=0)
+    fig_func_val = plot_data(data_x=data_x, data_y=avg_base_func_vals, label_x='steps', label_y='Func Val', label=f'{args.optim_base}', fig_no=0)
 
 
     fig_rewards = plot_data(data_x=data_x, data_y=avg_meta_rewards, label_x='steps', label_y='rewards', label='meta', fig_no=1)
-    fig_rewards = plot_data(data_x=data_x, data_y=avg_base_rewards, label_x='steps', label_y='rewards', label='adam', fig_no=1)
+    fig_rewards = plot_data(data_x=data_x, data_y=avg_base_rewards, label_x='steps', label_y='rewards', label=f'{args.optim_base}', fig_no=1)
 
     print(f"meta val: {avg_meta_func_vals[-1]:.4f}, base val: {avg_base_func_vals[-1]:.4f}")
 
-    print(f'saving plot to {meta_model_dir}/func_val_{args.optim_base}.png')
-    fig_func_val.savefig(f'{meta_model_dir}/func_val_{args.optim_base}.png')
+    print(f'saving plot to {meta_model_dir}/func_val_{args.optim_base}_lr_{args.lr_base}_s_{args.n_steps_test}.png')
+    fig_func_val.savefig(f'{meta_model_dir}/func_val_{args.optim_base}_lr_{args.lr_base}_s_{args.n_steps_test}.png')
 
-    print(f'saving plot to {meta_model_dir}/rewards_{args.optim_base}.png')
-    fig_rewards.savefig(f'{meta_model_dir}/rewards_{args.optim_base}.png')
+    print(f'saving plot to {meta_model_dir}/rewards_{args.optim_base}_lr_{args.lr_base}_s_{args.n_steps_test}.png')
+    fig_rewards.savefig(f'{meta_model_dir}/rewards_{args.optim_base}_lr_{args.lr_base}_s_{args.n_steps_test}.png')
     
 
 def main():
     
-    meta_model_dir = f'{args.save_dir}/{args.env}/lr_{args.lr}_bs_{args.batch_size}_dim_{args.dimension}_hid_{args.hidden_size}_eps_{args.n_episodes}_steps_{args.n_steps}/'
+    meta_model_dir = f'{args.save_dir}/{args.env}/lr_{args.lr}_bs_{args.batch_size}_dim_{args.dimension}_hid_{args.hidden_size}_gamma_{args.gamma}_eps_{args.n_episodes}_steps_{args.n_steps}/'
     assert(osp.exists(f"{meta_model_dir}/model.pth"))
     print(f'meta_model_dir: {meta_model_dir}')
     test(meta_model_dir)

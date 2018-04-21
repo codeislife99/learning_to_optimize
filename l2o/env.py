@@ -13,8 +13,7 @@ from l2o.dataset import get_synthetic
 
 # LR = torch.FloatTensor([1e-5, 1e-4, 1e-3, 1e-2, 0.1, 0.5, 1])
 
-LR = torch.FloatTensor([ 1e-2, 0.1, 0.25, 0.5, 0.75, 1, 2])
-
+LR = torch.FloatTensor([ 1e-3, 1e-2, 5e-2, 1e-1,  5e-1, 1.])
 
 VALUE_CLIP = 1e4
 NORM_CLIP = 10.0

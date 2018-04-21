@@ -6,6 +6,8 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
+from tqdm import trange
+
 
 def _to_cpu(x):
     result = x
@@ -49,7 +51,7 @@ def _optim_step(optim, rewards, log_probs, gamma):
 
 class Agent(nn.Module):
 
-    def __init__(self, batch_size, state_size, action_size, hidden_size):
+    def __init__(self, batch_size, state_size, action_size, hidden_size, gamma):
         super(Agent, self).__init__()
         self.batch_size = batch_size
         self.state_size = state_size
@@ -61,6 +63,7 @@ class Agent(nn.Module):
             nn.Softmax(dim=-1),
         )
         self.all_params = list(self.policy_step.parameters()) + list(self.action_head.parameters())
+        self.gamma = gamma
 
     def forward(self, *x):
         raise NotImplementedError
@@ -87,7 +90,7 @@ class Agent(nn.Module):
             # Book keeping
             rewards.append(reward)
             log_probs.append(log_prob)
-        _optim_step(optim, rewards, log_probs, gamma=0.99)
+        _optim_step(optim, rewards, log_probs, gamma=self.gamma)
         return torch.stack(rewards).sum(dim=1).mean()
 
     def test_episode(self, env, n_steps, batch_size=1):
@@ -102,11 +105,11 @@ class Agent(nn.Module):
         )
         func_vals, rewards = [], []
         state = env.reset()
-        for _ in range(n_steps):
+        for _ in trange(n_steps):
             state = Variable(state.cuda(), requires_grad=False, volatile=False)
             memory = self.policy_step(state, memory)
             action_probs = self.action_head(memory[0])
-
+            
             _, action = action_probs.max(dim=-1)
             action = action.data
             state, reward, _, _ = env.step(action)
