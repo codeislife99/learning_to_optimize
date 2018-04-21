@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
+from tqdm import trange
 
 def _to_cpu(x):
     result = x
@@ -102,7 +103,7 @@ class Agent(nn.Module):
         )
         func_vals, rewards = [], []
         state = env.reset()
-        for _ in range(n_steps):
+        for _ in trange(n_steps):
             state = Variable(state.cuda(), requires_grad=False, volatile=False)
             memory = self.policy_step(state, memory)
             action_probs = self.action_head(memory[0])
