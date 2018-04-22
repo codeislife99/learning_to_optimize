@@ -42,13 +42,16 @@ def test(meta_model_dir):
     std_meta_func_vals = np.std(meta_func_vals, axis=1)
     std_meta_rewards = np.std(meta_rewards, axis=1)
 
+    save_dir = f"{meta_model_dir}/{args.n_steps_test}/"
+    create_dir(save_dir)
+
     print(f'saving meta test data...')
-    np.save(f'{meta_model_dir}/avg_meta_func_vals.npy', avg_meta_func_vals)
-    np.save(f'{meta_model_dir}/std_meta_func_vals.npy', std_meta_func_vals)
-    np.save(f'{meta_model_dir}/meta_func_vals.npy', np.transpose(meta_func_vals))
+    np.save(f'{save_dir}/avg_meta_func_vals.npy', avg_meta_func_vals)
+    np.save(f'{save_dir}/std_meta_func_vals.npy', std_meta_func_vals)
+    np.save(f'{save_dir}/meta_func_vals.npy', np.transpose(meta_func_vals))
 
     if args.env == 'quadratic':
-        np.save(f'{meta_model_dir}/optimal_value.npy', env.f_opt)
+        np.save(f'{save_dir}/optimal_value.npy', env.f_opt)
     
     optims = ['adam', 'sgd']
     base_lrs = [1.0, 0.5, 0.1, 0.01, 0.001, 1e-4]
@@ -86,9 +89,9 @@ def test(meta_model_dir):
             std_base_rewards = np.std(base_rewards, axis=1)
 
             print(f"saving test opt: {opt}, lr: {lr}")
-            np.save(f'{meta_model_dir}/avg_opt_{opt}_lr_{lr}_func_vals.npy', avg_base_func_vals)
-            np.save(f'{meta_model_dir}/std_opt_{opt}_lr_{lr}_func_vals.npy', std_base_func_vals)
-            np.save(f'{meta_model_dir}/opt_{opt}_lr_{lr}_func_vals.npy', np.transpose(base_func_vals))
+            np.save(f'{save_dir}/avg_opt_{opt}_lr_{lr}_func_vals.npy', avg_base_func_vals)
+            np.save(f'{save_dir}/std_opt_{opt}_lr_{lr}_func_vals.npy', std_base_func_vals)
+            np.save(f'{save_dir}/opt_{opt}_lr_{lr}_func_vals.npy', np.transpose(base_func_vals))
 
     # data_x = np.arange(args.n_steps_test)
     # fig_func_val = plot_data(data_x=data_x, data_y=avg_meta_func_vals, label_x='steps', label_y='Func Val', label='meta', fig_no=0)
