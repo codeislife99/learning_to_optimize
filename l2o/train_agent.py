@@ -48,7 +48,7 @@ def train(meta_model_dir):
     for episode in trange(args.n_episodes):
         mean_reward = agent.train_episode(env=env, n_steps=args.n_steps, optim=optimizer)
         current_func_val = env.func_val.cpu().numpy()
-        logger.info(f"Episode {episode}, mean reward {mean_reward:.4f}, loss {current_func_val.mean():.4f}")
+        logger.info(f"Episode {episode}, mean reward {mean_reward:.4f}, mean func val {current_func_val.mean():.4f}")
 
         agent.save(path=f"{meta_model_dir}/model.pth")
 

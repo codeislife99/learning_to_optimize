@@ -106,7 +106,7 @@ class Agent(nn.Module):
         func_vals, rewards = [], []
         state = env.reset()
         for _ in trange(n_steps):
-            state = Variable(state.cuda(), requires_grad=False, volatile=False)
+            state = Variable(state.cuda(), requires_grad=False, volatile=True)
             memory = self.policy_step(state, memory)
             action_probs = self.action_head(memory[0])
             _, action = action_probs.max(dim=-1)
