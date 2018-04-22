@@ -109,7 +109,6 @@ class Agent(nn.Module):
             state = Variable(state.cuda(), requires_grad=False, volatile=False)
             memory = self.policy_step(state, memory)
             action_probs = self.action_head(memory[0])
-            
             _, action = action_probs.max(dim=-1)
             action = action.data
             state, reward, _, _ = env.step(action)

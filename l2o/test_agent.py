@@ -25,7 +25,7 @@ def test(meta_model_dir):
 
     action_size = len(LR)
     state_size = 2 * args.dimension + 1
-    agent = Agent(batch_size=args.batch_size, state_size=state_size, action_size=action_size, hidden_size=args.hidden_size)
+    agent = Agent(batch_size=args.batch_size, state_size=state_size, action_size=action_size, hidden_size=args.hidden_size, gamma=args.gamma)
     agent.load(f"{meta_model_dir}/model.pth")    
     agent.cuda()
 
