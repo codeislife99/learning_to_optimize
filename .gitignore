@@ -2,7 +2,6 @@
 __pycache__/
 *.py[cod]
 *$py.class
-click_test.py
 # C extensions
 *.so
 
@@ -99,3 +98,7 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+.vscode
+
+log
