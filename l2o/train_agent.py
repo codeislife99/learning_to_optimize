@@ -37,15 +37,14 @@ def get_pca(env):
         optimizer.zero_grad()
         loss = env._eval()
         optimizer.step()
-        print(loss.mean().data[0])
-        current_params = env._get_state()[ :, args.dimension]
+        current_params = env._get_state()[ :, : args.dimension]
         if last_params is not None:
             directions.append(current_params - last_params)
         last_params = current_params
     directions = torch.stack(directions, dim=1) # [mbs, steps, dimension]
     directions = torch.unbind(directions, dim=0) # mbs * [steps, dimension]
     projects = [PCA(d, k=args.pca_dim) for d in directions] # mbs * [steps, k]
-    projects = torch.cat(projects, dim=0) # [mbs, steps, k]
+    projects = torch.stack(projects, dim=0) # [mbs, steps, k]
     return projects
 
 

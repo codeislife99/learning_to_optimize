@@ -54,7 +54,10 @@ class PolicyStep(nn.Module):
 
     def __init__(self, state_size, hidden_size, dimension, project=None):
         super(PolicyStep, self).__init__()
-        self.policy_step = nn.LSTMCell(state_size, hidden_size)
+        if project is None:
+            self.policy_step = nn.LSTMCell(state_size, hidden_size)
+        else:
+            self.policy_step = nn.LSTMCell(2 * project.shape[-1] + 1, hidden_size)
         self.dimension = dimension
         if project is not None:
             self.project = nn.Parameter(project, requires_grad=False)
