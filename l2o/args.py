@@ -17,5 +17,12 @@ parser.add_argument('--lr_base', type=float, default=1e-1)
 parser.add_argument('--n_steps_test', type=int, default=200, help='number of steps to take in testing')
 parser.add_argument('--optim_base', type=str, choices=['adam', 'sgd'], default='adam', help='base optimizer')
 parser.add_argument('--load_model_from', type=str, default="")
+
+# for PCA
+parser.add_argument('--pca', action="store_true")
+parser.add_argument('--pca_init_lr', type=float, default=0.1)
+parser.add_argument('--pca_init_steps', type=int, default=100)
+parser.add_argument('--pca_dim', type=int, default=50)
+
 # parser.add_argument('--gamma', type=float, default=0.99) # hard coded
 args = parser.parse_args()
