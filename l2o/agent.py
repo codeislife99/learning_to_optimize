@@ -116,7 +116,7 @@ class Agent(nn.Module):
             # Book keeping
             rewards.append(reward)
             log_probs.append(log_prob)
-        _optim_step(optim, rewards, log_probs, gamma=0.99)
+        _optim_step(optim, rewards, log_probs, gamma=self.gamma)
         return torch.stack(rewards).sum(dim=1).mean()
 
     def test_episode(self, env, n_steps, batch_size=1):
@@ -132,10 +132,9 @@ class Agent(nn.Module):
         func_vals, rewards = [], []
         state = env.reset()
         for _ in trange(n_steps):
-            state = Variable(state.cuda(), requires_grad=False, volatile=False)
+            state = Variable(state.cuda(), requires_grad=False, volatile=True)
             memory = self.policy_step(state, memory)
             action_probs = self.action_head(memory[0])
-
             _, action = action_probs.max(dim=-1)
             action = action.data
             state, reward, _, _ = env.step(action)

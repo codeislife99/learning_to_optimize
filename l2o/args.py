@@ -14,7 +14,7 @@ parser.add_argument('--save_dir', type=str, default='logs', help='folder to save
 parser.add_argument('--env', type=str, choices=['quadratic', 'logistic', 'mlp'], default='mlp')
 
 parser.add_argument('--lr_base', type=float, default=1e-1)
-parser.add_argument('--n_steps_test', type=int, default=200, help='number of steps to take in testing')
+parser.add_argument('--n_steps_test', type=int, default=100, help='number of steps to take in testing')
 parser.add_argument('--optim_base', type=str, choices=['adam', 'sgd'], default='adam', help='base optimizer')
 parser.add_argument('--load_model_from', type=str, default="")
 

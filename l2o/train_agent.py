@@ -10,12 +10,15 @@ from l2o.agent import Agent, _to_cpu
 from l2o.args import args
 from l2o.env import LR, QuadraticEnvironment, LogisticEnvironment, MlpEnvironment
 from l2o.utils import plot_data, create_dir, PCA
+from l2o.utils import set_up_output_dir
 
 import numpy as np
 import torch
 import os.path as osp
 
 from tqdm import trange
+
+logger = None
 
 
 def fix_random_seed(seed):
@@ -68,17 +71,20 @@ def train(meta_model_dir):
 
     optimizer = optim.Adam(agent.all_params, lr=args.lr, eps=1e-5)
 
-    for episode in range(args.n_episodes):
+    for episode in trange(args.n_episodes):
         mean_reward = agent.train_episode(env=env, n_steps=args.n_steps, optim=optimizer)
         current_func_val = env.func_val.cpu().numpy()
         print(f"Episode {episode}, mean reward {mean_reward:.4f}, loss {current_func_val.mean():.4f}")
         agent.save(path=f"{meta_model_dir}/model.pth")
+        agent.save(path=f"{meta_model_dir}/model.pth")
 
 
 def main():
-    meta_model_dir = f'{args.save_dir}/{args.env}/lr_{args.lr}_bs_{args.batch_size}_dim_{args.dimension}_hid_{args.hidden_size}_eps_{args.n_episodes}_steps_{args.n_steps}/'
+    meta_model_dir = f'{args.save_dir}/{args.env}/lr_{args.lr}_bs_{args.batch_size}_dim_{args.dimension}_hid_{args.hidden_size}_gamma_{args.gamma}_eps_{args.n_episodes}_steps_{args.n_steps}/'
     create_dir(meta_model_dir)
-    print(f'meta_model_dir: {meta_model_dir}')
+    global logger
+    logger = set_up_output_dir(output_dir=meta_model_dir, file_name='train.log', name=f'{__name__}_train.log')
+    logger.info(f'meta_model_dir: {meta_model_dir}')
     train(meta_model_dir)
 
 
