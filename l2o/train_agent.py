@@ -9,9 +9,12 @@ import torch.optim as optim
 from l2o.agent import Agent, _to_cpu
 from l2o.args import args
 from l2o.env import LR, QuadraticEnvironment, LogisticEnvironment, MlpEnvironment
-from l2o.utils import plot_data, create_dir
+from l2o.utils import plot_data, create_dir, PCA
 from l2o.utils import set_up_output_dir
 
+import numpy as np
+import torch
+import os.path as osp
 
 from tqdm import trange
 
@@ -27,6 +30,27 @@ def fix_random_seed(seed):
     torch.cuda.manual_seed(seed)
 
 
+def get_pca(env):
+    if not args.pca:
+        return None
+    optimizer = optim.Adam(env.all_params, lr=args.pca_init_lr, eps=1e-5)
+    last_params = None
+    directions = []
+    for step in trange(args.pca_init_steps + 1):
+        optimizer.zero_grad()
+        loss = env._eval()
+        optimizer.step()
+        current_params = env._get_state()[ :, : args.dimension]
+        if last_params is not None:
+            directions.append(current_params - last_params)
+        last_params = current_params
+    directions = torch.stack(directions, dim=1) # [mbs, steps, dimension]
+    directions = torch.unbind(directions, dim=0) # mbs * [steps, dimension]
+    projects = [PCA(d, k=args.pca_dim) for d in directions] # mbs * [steps, k]
+    projects = torch.stack(projects, dim=0) # [mbs, steps, k]
+    return projects
+
+
 def train(meta_model_dir):
     if args.env == 'quadratic':
         env = QuadraticEnvironment(batch_size=args.batch_size, dimension=args.dimension)
@@ -37,9 +61,11 @@ def train(meta_model_dir):
     else:
         raise NotImplementedError
 
+    project = get_pca(env)
+
     action_size = len(LR)
     state_size = 2 * args.dimension + 1
-    agent = Agent(batch_size=args.batch_size, state_size=state_size, action_size=action_size, hidden_size=args.hidden_size, gamma=args.gamma).cuda()
+    agent = Agent(batch_size=args.batch_size, state_size=state_size, action_size=action_size, hidden_size=args.hidden_size, project=project).cuda()
     env.cuda()
     agent.cuda()
 
@@ -54,8 +80,9 @@ def train(meta_model_dir):
         else:
             logger.info(f"Episode {episode}, mean reward {mean_reward:.4f}, mean func val {current_func_val.mean():.4f}")
 
+        print(f"Episode {episode}, mean reward {mean_reward:.4f}, loss {current_func_val.mean():.4f}")
         agent.save(path=f"{meta_model_dir}/model.pth")
-
+        agent.save(path=f"{meta_model_dir}/model.pth")
 
 
 def main():
@@ -65,6 +92,7 @@ def main():
     logger = set_up_output_dir(output_dir=meta_model_dir, file_name='train.log', name=f'{__name__}_train.log')
     logger.info(f'meta_model_dir: {meta_model_dir}')
     train(meta_model_dir)
+
 
 if __name__ == "__main__":
     main()

@@ -10,6 +10,7 @@ from tqdm import trange
 
 base_line = np.array([0], dtype=np.float)
 base_line_decay = 0.9
+from l2o.args import args
 
 def _to_cpu(x):
     result = x
@@ -38,7 +39,7 @@ def _convert_to_var(x):
 
 
 def _optim_step(optim, rewards, log_probs, gamma):
-    
+
     def _get_decayed_rewards(rewards):
         decayed_r = 0.0
         decayed_rewards = []
@@ -69,21 +70,46 @@ def _optim_step(optim, rewards, log_probs, gamma):
     return pyloss
 
 
+class PolicyStep(nn.Module):
+
+    def __init__(self, state_size, hidden_size, dimension, project=None):
+        super(PolicyStep, self).__init__()
+        if project is None:
+            self.policy_step = nn.LSTMCell(state_size, hidden_size)
+        else:
+            self.policy_step = nn.LSTMCell(2 * project.shape[-1] + 1, hidden_size)
+        self.dimension = dimension
+        if project is not None:
+            self.project = nn.Parameter(project, requires_grad=False)
+
+    def forward(self, state, memory): # pylint: disable=W0221
+        if self.project is not None:
+            # [mbs, 1, dimension]
+            split_1 = state[ :, 0: self.dimension].unsqueeze(dim=1)
+            split_2 = state[ :, self.dimension: self.dimension * 2].unsqueeze(dim=1)
+            split_3 = state[ :, self.dimension * 2: ]
+            # [mbs, steps, k]
+            split_1 = torch.bmm(split_1, self.project).squeeze(dim=1)
+            split_2 = torch.bmm(split_2, self.project).squeeze(dim=1)
+            state = torch.cat([split_1, split_2, split_3], dim=1)
+        return self.policy_step(state, memory)
+
+
 class Agent(nn.Module):
 
-    def __init__(self, batch_size, state_size, action_size, hidden_size, gamma):
+    def __init__(self, batch_size, state_size, action_size, hidden_size, project=None):
         super(Agent, self).__init__()
         self.batch_size = batch_size
         self.state_size = state_size
         self.action_size = action_size
         self.hidden_size = hidden_size
-        self.policy_step = nn.LSTMCell(state_size, hidden_size)
+        self.policy_step = PolicyStep(state_size, hidden_size, args.dimension, project=project)
         self.action_head = nn.Sequential(
             nn.Linear(hidden_size, action_size),
             nn.Softmax(dim=-1),
         )
-        self.all_params = list(self.policy_step.parameters()) + list(self.action_head.parameters())
-        self.gamma = gamma
+        self.all_params = list(p for p in self.policy_step.parameters() if p.requires_grad) \
+                        + list(self.action_head.parameters())
 
     def forward(self, *x):
         raise NotImplementedError
