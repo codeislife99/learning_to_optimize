@@ -46,8 +46,8 @@ def test(meta_model_dir):
     create_dir(save_dir)
 
     print(f'saving meta test data...')
-    np.save(f'{save_dir}/avg_meta_func_vals.npy', avg_meta_func_vals)
-    np.save(f'{save_dir}/std_meta_func_vals.npy', std_meta_func_vals)
+    # np.save(f'{save_dir}/avg_meta_func_vals.npy', avg_meta_func_vals)
+    # np.save(f'{save_dir}/std_meta_func_vals.npy', std_meta_func_vals)
     np.save(f'{save_dir}/meta_func_vals.npy', np.transpose(meta_func_vals))
 
     if args.env == 'quadratic':
@@ -89,8 +89,8 @@ def test(meta_model_dir):
             std_base_rewards = np.std(base_rewards, axis=1)
 
             print(f"saving test opt: {opt}, lr: {lr}")
-            np.save(f'{save_dir}/avg_opt_{opt}_lr_{lr}_func_vals.npy', avg_base_func_vals)
-            np.save(f'{save_dir}/std_opt_{opt}_lr_{lr}_func_vals.npy', std_base_func_vals)
+            # np.save(f'{save_dir}/avg_opt_{opt}_lr_{lr}_func_vals.npy', avg_base_func_vals)
+            # np.save(f'{save_dir}/std_opt_{opt}_lr_{lr}_func_vals.npy', std_base_func_vals)
             np.save(f'{save_dir}/opt_{opt}_lr_{lr}_func_vals.npy', np.transpose(base_func_vals))
 
     # data_x = np.arange(args.n_steps_test)
@@ -111,7 +111,7 @@ def test(meta_model_dir):
     
 def main():
     
-    meta_model_dir = f'{args.save_dir}/{args.env}/lr_{args.lr}_bs_{args.batch_size}_dim_{args.dimension}_hid_{args.hidden_size}_gamma_{args.gamma}_eps_{args.n_episodes}_steps_{args.n_steps}/'
+    meta_model_dir = f'{args.save_dir}/{args.env}2/lr_{args.lr}_bs_{args.batch_size}_dim_{args.dimension}_hid_{args.hidden_size}_gamma_{args.gamma}_eps_{args.n_episodes}_steps_{args.n_steps}/'
     assert(osp.exists(f"{meta_model_dir}/model.pth"))
     print(f'meta_model_dir: {meta_model_dir}')
     test(meta_model_dir)

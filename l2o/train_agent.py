@@ -48,14 +48,18 @@ def train(meta_model_dir):
     for episode in trange(args.n_episodes):
         mean_reward = agent.train_episode(env=env, n_steps=args.n_steps, optim=optimizer)
         current_func_val = env.func_val.cpu().numpy()
-        logger.info(f"Episode {episode}, mean reward {mean_reward:.4f}, mean func val {current_func_val.mean():.4f}")
+        if args.env == 'quadratic':
+            best_func_val = env.f_opt
+            logger.info(f"Episode {episode}, mean reward {mean_reward:.4f}, mean func val {current_func_val.mean():.4f}, opt func val {best_func_val.mean():.4f}")
+        else:
+            logger.info(f"Episode {episode}, mean reward {mean_reward:.4f}, mean func val {current_func_val.mean():.4f}")
 
         agent.save(path=f"{meta_model_dir}/model.pth")
 
 
 
 def main():
-    meta_model_dir = f'{args.save_dir}/{args.env}/lr_{args.lr}_bs_{args.batch_size}_dim_{args.dimension}_hid_{args.hidden_size}_gamma_{args.gamma}_eps_{args.n_episodes}_steps_{args.n_steps}/'
+    meta_model_dir = f'{args.save_dir}/{args.env}2/lr_{args.lr}_bs_{args.batch_size}_dim_{args.dimension}_hid_{args.hidden_size}_gamma_{args.gamma}_eps_{args.n_episodes}_steps_{args.n_steps}/'
     create_dir(meta_model_dir)
     global logger
     logger = set_up_output_dir(output_dir=meta_model_dir, file_name='train.log', name=f'{__name__}_train.log')

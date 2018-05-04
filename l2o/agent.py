@@ -8,6 +8,8 @@ from torch.autograd import Variable
 
 from tqdm import trange
 
+base_line = np.array([0], dtype=np.float)
+base_line_decay = 0.9
 
 def _to_cpu(x):
     result = x
@@ -21,8 +23,18 @@ def _to_scalar(tensor):
     return np.asscalar(tensor.cpu().numpy())
 
 
-def _convert_to_var(tensor):
-    return Variable(tensor.cuda(), requires_grad=False, volatile=False)
+def _convert_to_var(x):
+    result = x
+
+    result = np.asarray(result)
+    if isinstance(result, (np.ndarray, np.generic)):
+        result = torch.from_numpy(result)
+    if not result.is_cuda:
+        result = result.cuda()
+    if not isinstance(result, Variable):
+        result = Variable(result, requires_grad=False, volatile=False).float()
+    return result
+
 
 
 def _optim_step(optim, rewards, log_probs, gamma):
@@ -41,6 +53,14 @@ def _optim_step(optim, rewards, log_probs, gamma):
     rewards = (rewards - rewards.mean(dim=0, keepdim=True)) / (rewards.std(dim=0, keepdim=True) + 1e-6)
     log_probs = torch.stack(log_probs, dim=0)
     assert rewards.shape == log_probs.shape
+
+
+
+    # global base_line
+    # adv = (rewards - _convert_to_var(base_line)) 
+    # base_line = (base_line_decay * base_line + (1 - base_line_decay) * _to_cpu(rewards.mean()))/ (1-base_line_decay)
+    # loss = (adv * -log_probs).sum()
+
     loss = (rewards * -log_probs).sum()
     pyloss = loss.data[0]
     optim.zero_grad()

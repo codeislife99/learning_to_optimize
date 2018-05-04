@@ -11,9 +11,9 @@ from sklearn.datasets import make_classification
 from l2o.dataset import get_synthetic
 
 
-# LR = torch.FloatTensor([1e-5, 1e-4, 1e-3, 1e-2, 0.1, 0.5, 1])
+LR = torch.FloatTensor([1e-5, 1e-4, 1e-3, 1e-2, 0.1, 0.5, 1])
 
-LR = torch.FloatTensor([ 1e-3, 1e-2, 5e-2, 1e-1,  5e-1, 1.])
+# LR = torch.FloatTensor([ 1e-3, 1e-2, 5e-2, 1e-1,  5e-1, 1.])
 
 VALUE_CLIP = 1e4
 NORM_CLIP = 10.0
@@ -71,7 +71,8 @@ class QuadraticEnvironment(nn.Module):
         reinitializes current parameter (current iterate), computes current function value and returns the state
         """
         # x: [batch_size, dimension, 1]
-        x = np.random.normal(0.0, 1.0, size=(self.batch_size, self.dimension, 1))
+        # x = np.random.normal(0.0, 1.0, size=(self.batch_size, self.dimension, 1))
+        x = np.ones((self.batch_size, self.dimension, 1))
         x = torch.from_numpy(x.astype("float32"))
         if self.H.is_cuda:
             x = x.cuda()
@@ -169,18 +170,7 @@ class LogisticEnvironment(nn.Module):
         self.x = None
         self.all_params = None
         self.func_val = None
-        # Data generation for logistic regression
-        # Weight for data generation
-        #self.w = self.mu*np.random.rand(batch_size, dimensions)
-        # Generate Features
-        #self.X = 2*np.random.randn(batch_size, sample_size, dimensions)
-        # add 1 to incorporate bias terms
-        #self.X[:,:,0] = 1
-        # Get labels
-        #logits = np.einsum('ijk,ik -> ij', self.X, self.w)
-        #self.Y = 2*(1/(1 + np.exp(logits)) > np.random.rand(batch_size,sample_size)) - 1
-        #idx = np.random.choice(self.sample_size, size=self.sample_size//10, replace=False)
-        #self.Y[:,idx] = -1*self.Y[:,idx]
+
     @staticmethod
     def _generate_parameters(batch_size, dimension, sample_size, mu):
         res_X, res_Y = [], []
@@ -255,13 +245,13 @@ class LogisticEnvironment(nn.Module):
 
         mini_batchX = X.index_select(1, idx)
         mini_batchY = Y.index_select(1, idx)
+        import ipdb; ipdb.set_trace()
 
-
-        logits = torch.bmm(mini_batchX, x).squeeze(dim=-1)
-        labeled_logits = mini_batchY * logits
-        exp_logits = labeled_logits.max(0)[0] + torch.log(1 + torch.exp(-labeled_logits.abs()))
-        result = exp_logits.mean(dim=1) + 0.5 * self.lamda * (x * x).squeeze(dim=-1).sum(dim=1)
-        #pdb.set_trace()
+        logits = torch.bmm(mini_batchX, x).squeeze(dim=-1) # [64, 50]
+        labeled_logits = mini_batchY * logits           # [64, 50]
+        exp_logits = labeled_logits.max(0)[0] + torch.log(1 + torch.exp(-labeled_logits.abs())) # [50], [64, 50]
+        result = exp_logits.mean(dim=1) + 0.5 * self.lamda * (x * x).squeeze(dim=-1).sum(dim=1) # [64]
+        
 
         assert len(result.shape) == 1
         self._zero_grad()
